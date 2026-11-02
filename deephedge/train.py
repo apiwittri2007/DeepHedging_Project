@@ -32,7 +32,7 @@ def train_deep_hedger(
     seed: int = 0,
 ) -> tuple[dict, list[float]]:
     """Return trained params ``{"net", "w"}`` and the per-epoch loss history."""
-    layer_sizes = layer_sizes or [3, 16, 16, 1]
+    layer_sizes = layer_sizes or [4, 16, 16, 1]
     rng = np.random.default_rng(seed)
     theta = {"net": init_params(layer_sizes, seed=seed), "w": 0.0}
     flat, unflatten = flatten(theta)

@@ -17,7 +17,7 @@ import autograd.numpy as anp
 import numpy as np
 
 from .costs import proportional_cost
-from .gbm import bs_call_price
+from .gbm import bs_call_delta, bs_call_price
 
 Policy = Callable[[anp.ndarray], anp.ndarray]  # features (n_paths, 3) -> holding (n_paths,)
 
@@ -34,9 +34,11 @@ def simulate_hedged_pnl(
 ) -> anp.ndarray:
     """Terminal P&L per path of hedging a short European call.
 
-    ``policy`` receives features ``[time_to_maturity, log(S/K), current_holding]``
-    of shape (n_paths, 3) and returns the target holding (n_paths,). The holding
-    at step k uses only data at step k, so the strategy is causal by construction.
+    ``policy`` receives features ``[time_to_maturity, log(S/K), current_holding,
+    bs_delta]`` of shape (n_paths, 4) and returns the target holding (n_paths,).
+    Including the model delta lets a network learn a cost-aware *correction* to
+    delta rather than relearn hedging from scratch. The holding at step k uses
+    only data at step k, so the strategy is causal by construction.
     """
     n_paths, n_cols = paths.shape
     n_steps = n_cols - 1
@@ -48,9 +50,11 @@ def simulate_hedged_pnl(
     shares = anp.zeros(n_paths)
     for k in range(n_steps):
         s_k = paths[:, k]
-        ttm = anp.ones(n_paths) * (T - k * dt)
+        ttm_val = T - k * dt
+        ttm = anp.ones(n_paths) * ttm_val
         logm = anp.log(s_k / K)
-        feats = anp.stack([ttm, logm, shares], axis=1)
+        delta_feat = bs_call_delta(s_k, K, r, sigma, max(ttm_val, 1e-8))
+        feats = anp.stack([ttm, logm, shares, delta_feat], axis=1)
         holding = policy(feats)
         trade = holding - shares
         cash = cash - trade * s_k - proportional_cost(anp.abs(trade) * s_k, cost_rate)

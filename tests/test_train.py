@@ -17,7 +17,7 @@ def eval_cvar(policy, paths, cost):
 def test_training_reduces_tail_risk():
     train_paths = simulate_gbm_paths(100, 0.0, 0.2, 1.0, 10, 3000, seed=0)
     eval_paths = simulate_gbm_paths(100, 0.0, 0.2, 1.0, 10, 3000, seed=99)
-    layers = [3, 16, 16, 1]
+    layers = [4, 16, 16, 1]
     cost = 0.001
 
     init = make_policy(init_params(layers, seed=0))
@@ -36,6 +36,6 @@ def test_training_reduces_tail_risk():
 
 def test_returns_learnable_w():
     paths = simulate_gbm_paths(100, 0.0, 0.2, 1.0, 10, 1000, seed=1)
-    params, _ = train_deep_hedger(paths, cost_rate=0.0, layer_sizes=[3, 8, 1],
+    params, _ = train_deep_hedger(paths, cost_rate=0.0, layer_sizes=[4, 8, 1],
                                   epochs=10, batch_size=128, lr=0.01, seed=1, **ARGS)
     assert "net" in params and "w" in params

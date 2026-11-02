@@ -54,3 +54,16 @@ def test_engine_is_autograd_differentiable():
     g = grad(mean_pnl)(0.5)
     expected = (paths[:, -1] - paths[:, 0]).mean()  # d/dtheta of closed form
     assert np.isclose(g, expected, rtol=1e-6)
+
+
+def test_policy_receives_delta_feature():
+    paths = simulate_gbm_paths(100, 0.0, 0.2, 1.0, 5, 10, seed=1)
+    seen = {}
+
+    def capture(feats):
+        seen["f"] = np.asarray(feats)
+        return anp.zeros(feats.shape[0])
+
+    simulate_hedged_pnl(paths, capture, 100, 0.0, 0.2, 1.0, 0.0, premium=8.0)
+    assert seen["f"].shape[1] == 4
+    assert (seen["f"][:, 3] >= 0).all() and (seen["f"][:, 3] <= 1).all()
