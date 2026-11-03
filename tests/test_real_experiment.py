@@ -57,3 +57,11 @@ def test_empty_calibration_raises(windows):
     with pytest.raises(ValueError, match="calibration"):
         run_real_experiment(windows, split="2000-01-01", cost_grid=(0.0,), focus_cost=0.0,
                             n_train=100, epochs=1, layer_sizes=(4, 4, 1))
+
+
+def test_significance_per_cost(result):
+    sig = result["significance"]
+    assert [s["cost"] for s in sig] == [0.0, 0.0015]
+    for s in sig:
+        assert s["ci_low"] <= s["ci_high"] and np.isfinite(s["diff"])
+        assert 0.0 <= s["p_a_not_better"] <= 1.0

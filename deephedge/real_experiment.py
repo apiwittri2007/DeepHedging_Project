@@ -17,7 +17,7 @@ import numpy as np
 from .delta import feature_banded_policy, feature_delta_policy
 from .gbm import simulate_gbm_paths
 from .hedge import simulate_hedged_pnl
-from .metrics import cvar, summary
+from .metrics import cvar, paired_bootstrap_cvar_diff, summary
 from .network import make_policy
 from .realdata import TRADING_DAYS, Windows
 from .train import train_deep_hedger
@@ -79,7 +79,7 @@ def run_real_experiment(
     sim_paths = simulate_gbm_paths(100.0, 0.0, sim_sig, T, horizon, n_sim_eval, seed=seed + 1)
     datasets = {"real": (test.paths, test.trailing_vol), "sim": (sim_paths, sim_sig)}
 
-    rows, periods = [], []
+    rows, periods, significance = [], [], []
     focus_pnl, history, zero_cost_delta = {}, [], None
     for cost in cost_grid:
         params, hist = train_deep_hedger(
@@ -92,14 +92,20 @@ def run_real_experiment(
             "banded_delta": feature_banded_policy(band),
             "no_hedge": lambda f: np.zeros(f.shape[0]),
         }
+        real_pnl = {}
         for ds, (paths, sig) in datasets.items():
             for name, pol in policies.items():
                 pnl = np.asarray(simulate_hedged_pnl(paths, pol, K, 0.0, sig, T, cost))
+                if ds == "real":
+                    real_pnl[name] = pnl
                 rows.append(dict(dataset=ds, cost=cost, strategy=name, **summary(pnl)))
                 if ds == "real" and np.isclose(cost, focus_cost):
                     focus_pnl[name] = pnl
                 if ds == "real" and cost == 0.0 and name == "delta":
                     zero_cost_delta = pnl
+        boot = paired_bootstrap_cvar_diff(real_pnl["deep"], real_pnl["delta"], n_boot=1000, seed=seed,
+                                          clusters=test.start.astype("datetime64[M]"))
+        significance.append(dict(cost=cost, **boot))
         if np.isclose(cost, focus_cost):
             history = hist
 
@@ -118,6 +124,7 @@ def run_real_experiment(
     return {
         "rows": rows,
         "periods": periods,
+        "significance": significance,
         "focus_cost": focus_cost,
         "focus_pnl": focus_pnl,
         "history": history,
