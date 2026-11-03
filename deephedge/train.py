@@ -12,6 +12,7 @@ import numpy as np
 from autograd import grad
 from autograd.misc.flatten import flatten
 
+from .gbm import path_sigma
 from .hedge import simulate_hedged_pnl
 from .metrics import ru_cvar_objective
 from .network import init_params, make_policy
@@ -21,7 +22,7 @@ def train_deep_hedger(
     paths: np.ndarray,
     K: float,
     r: float,
-    sigma: float,
+    sigma,
     T: float,
     cost_rate: float,
     alpha: float = 0.95,
@@ -37,9 +38,11 @@ def train_deep_hedger(
     theta = {"net": init_params(layer_sizes, seed=seed), "w": 0.0}
     flat, unflatten = flatten(theta)
 
-    def loss_from_flat(flat_vec, batch):
+    sigma = path_sigma(sigma, paths.shape[0])
+
+    def loss_from_flat(flat_vec, batch, batch_sigma):
         th = unflatten(flat_vec)
-        pnl = simulate_hedged_pnl(batch, make_policy(th["net"]), K, r, sigma, T, cost_rate)
+        pnl = simulate_hedged_pnl(batch, make_policy(th["net"]), K, r, batch_sigma, T, cost_rate)
         return ru_cvar_objective(pnl, th["w"], alpha)
 
     gloss = grad(loss_from_flat)
@@ -50,9 +53,10 @@ def train_deep_hedger(
     history: list[float] = []
 
     for t in range(1, epochs + 1):
-        batch = paths[rng.integers(0, n, size=min(batch_size, n))]
-        loss = loss_from_flat(flat, batch)
-        g = gloss(flat, batch)
+        idx = rng.integers(0, n, size=min(batch_size, n))
+        batch_sigma = sigma[idx] if np.ndim(sigma) else sigma
+        loss = loss_from_flat(flat, paths[idx], batch_sigma)
+        g = gloss(flat, paths[idx], batch_sigma)
         m = b1 * m + (1 - b1) * g
         v = b2 * v + (1 - b2) * g * g
         mh = m / (1 - b1**t)

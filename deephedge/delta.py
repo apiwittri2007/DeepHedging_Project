@@ -30,3 +30,20 @@ def banded_delta_policy(K: float, r: float, sigma: float, band: float):
         trade_needed = anp.abs(target - current) > band
         return anp.where(trade_needed, target, current)
     return policy
+
+
+def feature_delta_policy():
+    """BS delta taken from the engine's delta feature (feats[:, 3]).
+
+    Equivalent to :func:`delta_policy` but uses whatever (possibly per-path)
+    volatility the engine priced with, e.g. each real window's trailing vol.
+    """
+    return lambda feats: feats[:, 3]
+
+
+def feature_banded_policy(band: float):
+    """No-trade-band delta using the engine's delta feature."""
+    def policy(feats):
+        target, current = feats[:, 3], feats[:, 2]
+        return anp.where(anp.abs(target - current) > band, target, current)
+    return policy
