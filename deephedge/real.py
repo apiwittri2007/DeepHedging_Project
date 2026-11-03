@@ -57,16 +57,12 @@ def _save(fig, path):
 def _end_labels(ax, x, ends: dict):
     """Direct labels at line ends, nudged apart so they never overlap."""
     lo, hi = ax.get_ylim()
-    gap = 0.045 * (hi - lo)
-    placed = []
+    gap, dx = 0.045 * (hi - lo), 0.02 * (ax.get_xlim()[1] - ax.get_xlim()[0])
+    last = None
     for name, y in sorted(ends.items(), key=lambda kv: kv[1]):
-        y_lab = max(y, placed[-1] + gap) if placed else y
-        placed.append(y_lab)
-        ax.annotate(LABEL[name], (x, y), xytext=(x, y_lab), textcoords="data", va="center", fontsize=8,
-                    color=INK2, annotation_clip=False,
-                    arrowprops=None)
-        ax.texts[-1].set_x(x)
-        ax.texts[-1].set_position((x + 0.02 * (ax.get_xlim()[1] - ax.get_xlim()[0]), y_lab))
+        y_lab = y if last is None else max(y, last + gap)
+        ax.text(x + dx, y_lab, LABEL[name], va="center", fontsize=8, color=INK2)
+        last = y_lab
 
 
 def chart_stylized(res, path):
@@ -145,6 +141,7 @@ def chart_pnl_hist(res, path):
 
 def chart_misspec(res, path):
     gap, pnl = res["misspec"]["gap"], res["misspec"]["pnl"]
+    corr = np.corrcoef(gap, pnl)[0, 1]          # on all windows, before trimming for display
     keep = (np.abs(gap) < 1.0) & (np.abs(pnl) < np.percentile(np.abs(pnl), 99.5))
     gap, pnl = gap[keep], pnl[keep]
     fig, ax = _fig()
@@ -155,7 +152,6 @@ def chart_misspec(res, path):
     ax.plot(*zip(*mids), color=INK, lw=2, marker="o", ms=6, label="Average by vol-gap bucket")
     ax.axhline(0, color=INK2, lw=1, ls=":")
     ax.axvline(0, color=INK2, lw=1, ls=":")
-    corr = np.corrcoef(gap, pnl)[0, 1]
     ax.set_xlabel("Vol the trader used − vol that actually happened (percentage points)")
     ax.set_ylabel("Delta-hedge P&L, zero cost")
     _axes(ax, "Hedging P&L on real data is mostly a volatility bet",

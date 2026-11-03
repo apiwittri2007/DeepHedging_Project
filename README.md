@@ -9,7 +9,7 @@
 
 Every number and chart here is produced by the code in this repo (`python -m deephedge`, `python -m deephedge.real`). NumPy + [`autograd`](https://github.com/HIPS/autograd), no deep-learning framework; 53 tests.
 
-> **One-paragraph summary.** In simulation the deep hedger only matches delta at zero cost — it can't beat the optimal hedge — but pulls ahead as costs rise, by learning to trade less. On real HK tech stocks, tail risk is about **twice** what the GBM simulation predicts (returns have excess kurtosis ≈ 7, and hedging P&L is mostly a bet on realised vs assumed volatility, correlation 0.87). Even so, the cost advantage **survives out-of-sample**: at a realistic HK stock-trading cost of 15 bps per side, the deep hedger's CVaR₉₅ is **6.10 vs 6.35** for delta (−4%, 95% CI [−0.35, −0.14], month-clustered bootstrap), and the gap widens with cost. At 0–5 bps delta is still better — as theory says it should be.
+> **One-paragraph summary.** In simulation the deep hedger only matches delta at zero cost — it can't beat the optimal hedge — but pulls ahead as costs rise, by learning to trade less. On real HK tech stocks, tail risk is about **twice** what the GBM simulation predicts (returns have excess kurtosis ≈ 7, and hedging P&L is mostly a bet on realised vs assumed volatility, correlation 0.85). Even so, the cost advantage **survives out-of-sample**: at a realistic HK stock-trading cost of 15 bps per side, the deep hedger's CVaR₉₅ is **6.10 vs 6.35** for delta (−4%, 95% CI [−0.35, −0.14], month-clustered bootstrap), and the gap widens with cost. At 0–5 bps delta is still better — as theory says it should be.
 
 ---
 
@@ -68,7 +68,7 @@ The bootstrap resamples whole **calendar months**, not single windows. Stocks hi
 ### 3. Why real tail risk is ~2× the simulated one
 ![Vol misspecification](docs/img/real/real_vol_misspecification.png)
 
-On real data, delta-hedging P&L is mostly a **bet on volatility**: sell the option with 50% vol and the stock realises 30%, and you keep the difference; get it the other way round and you lose (correlation 0.87). No hedging rule can remove this risk, which is why every hedger's CVaR roughly doubles from simulation to reality. The deep hedger's edge is the part it *can* control: trading cost.
+On real data, delta-hedging P&L is mostly a **bet on volatility**: sell the option with 50% vol and the stock realises 30%, and you keep the difference; get it the other way round and you lose (correlation 0.85). No hedging rule can remove this risk, which is why every hedger's CVaR roughly doubles from simulation to reality. The deep hedger's edge is the part it *can* control: trading cost.
 
 ### 4. By market regime (15 bps)
 ![Periods](docs/img/real/real_periods.png)

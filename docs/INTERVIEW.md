@@ -66,7 +66,7 @@ objective to a mean-variance / entropic utility objective.
 out-of-sample on 2,650 real one-month windows from 29 Hang Seng Tech stocks, 2016–2026.
 Two findings. First, real tail risk is about twice what GBM predicts: returns have excess
 kurtosis of about 7, and hedging P&L is mostly a bet on realised versus assumed vol, with
-correlation 0.87. Second, the deep hedger's cost advantage survives: at a realistic 15 bps
+correlation 0.85. Second, the deep hedger's cost advantage survives: at a realistic 15 bps
 it cuts CVaR by about 4%, and the month-clustered bootstrap CI is [−0.35, −0.14], so it's
 significant. At 0–5 bps delta still wins, which is what theory predicts."
 

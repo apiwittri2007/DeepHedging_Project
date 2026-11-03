@@ -18,7 +18,7 @@ Black–Scholes delta hedging is optimal only if you can rebalance continuously 
 **Simulation (GBM):** at zero cost the deep hedger only matches delta (CVaR 3.40 vs 3.51), as it must, since delta is optimal there. As costs rise it pulls ahead by trading less: at 50 bps, CVaR 4.68 vs 5.12 (−9%).
 
 **Real HK data, out-of-sample 2016–2026 (2,650 windows), hedger trained only on simulation:**
-- Real tail risk is **~2×** what the simulation predicts. Returns have excess kurtosis ≈ 7, and hedging P&L is dominated by the realised-vs-assumed volatility gap (correlation 0.87).
+- Real tail risk is **~2×** what the simulation predicts. Returns have excess kurtosis ≈ 7, and hedging P&L is dominated by the realised-vs-assumed volatility gap (correlation 0.85).
 - At a **realistic 15 bps**, deep hedger CVaR₉₅ = **6.10 vs 6.35** for delta, difference −0.25, **95% CI [−0.35, −0.14]** with the month-clustered bootstrap. That is significant, and the gap grows to −0.45 at 50 bps.
 - At 0–5 bps delta is still better, and at 10 bps it's a tie. This matches theory: the network's edge is cost management, not a better model.
 - By regime it is better over the whole test period, the 2021–22 tech crackdown and 2023 onwards, and worse in the COVID crash (n = 84, noisy).
