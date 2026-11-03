@@ -3,7 +3,7 @@ name = "deephedge"
 version = "0.1.0"
 description = "Deep hedging vs delta hedging under transaction costs (Monte Carlo)"
 requires-python = ">=3.10"
-dependencies = ["numpy>=1.24", "scipy>=1.10", "autograd>=1.6", "matplotlib>=3.7"]
+dependencies = ["numpy>=1.24", "scipy>=1.10", "autograd>=1.6", "pandas>=2.0", "matplotlib>=3.7"]
 
 [tool.setuptools]
 packages = ["deephedge"]
