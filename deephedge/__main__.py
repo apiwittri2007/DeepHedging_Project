@@ -13,8 +13,8 @@ import numpy as np  # noqa: E402
 
 from .experiment import run_experiment  # noqa: E402
 
-STYLE = {"deep": ("#d1495b", "Deep hedger"), "delta": ("#2f6db5", "BS delta"),
-         "banded_delta": ("#3fa34d", "Delta + band"), "no_hedge": ("#8a8a8a", "No hedge")}
+STYLE = {"deep": ("#2a78d6", "Deep hedger"), "delta": ("#eb6834", "BS delta"),
+         "banded_delta": ("#1baf7a", "Delta + band"), "no_hedge": ("#8f8e89", "No hedge")}
 
 
 def write_summary(rows, path: Path) -> None:
@@ -73,7 +73,7 @@ def plot_pnl_hist(pnl, cost, path: Path) -> None:
 
 def plot_training(history, path: Path) -> None:
     fig, ax = plt.subplots(figsize=(8, 4))
-    ax.plot(history, color="#d1495b")
+    ax.plot(history, color="#2a78d6")
     ax.set_xlabel("Epoch")
     ax.set_ylabel("CVaR training loss")
     ax.set_title("Deep hedger training")
@@ -85,8 +85,8 @@ def plot_training(history, path: Path) -> None:
 
 def plot_example(example, path: Path) -> None:
     fig, ax = plt.subplots(figsize=(8, 4))
-    ax.plot(example["delta"], color="#2f6db5", label="BS delta", linewidth=1.8)
-    ax.plot(example["deep"], color="#d1495b", label="Deep hedger", linewidth=1.8)
+    ax.plot(example["delta"], color="#eb6834", label="BS delta", linewidth=1.8)
+    ax.plot(example["deep"], color="#2a78d6", label="Deep hedger", linewidth=1.8)
     ax.set_xlabel("Rebalancing step")
     ax.set_ylabel("Holding (shares)")
     ax.set_title("Example hedge path: deep hedger trades less than delta")

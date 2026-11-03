@@ -17,9 +17,9 @@ import autograd.numpy as anp
 import numpy as np
 
 from .costs import proportional_cost
-from .gbm import bs_call_delta, bs_call_price
+from .gbm import bs_call_delta, bs_call_price, path_sigma
 
-Policy = Callable[[anp.ndarray], anp.ndarray]  # features (n_paths, 3) -> holding (n_paths,)
+Policy = Callable[[anp.ndarray], anp.ndarray]  # features (n_paths, 4) -> holding (n_paths,)
 
 
 def simulate_hedged_pnl(
@@ -27,10 +27,10 @@ def simulate_hedged_pnl(
     policy: Policy,
     K: float,
     r: float,
-    sigma: float,
+    sigma,
     T: float,
     cost_rate: float,
-    premium: float | None = None,
+    premium=None,
 ) -> anp.ndarray:
     """Terminal P&L per path of hedging a short European call.
 
@@ -43,8 +43,9 @@ def simulate_hedged_pnl(
     n_paths, n_cols = paths.shape
     n_steps = n_cols - 1
     dt = T / n_steps
+    sigma = path_sigma(sigma, n_paths)  # scalar or per-path vol the trader uses
     if premium is None:
-        premium = float(bs_call_price(paths[0, 0], K, r, sigma, T))
+        premium = bs_call_price(paths[:, 0], K, r, sigma, T)  # model price per path
 
     cash = anp.ones(n_paths) * premium
     shares = anp.zeros(n_paths)

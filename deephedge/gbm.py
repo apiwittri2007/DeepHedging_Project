@@ -11,16 +11,31 @@ import numpy as np
 from scipy.stats import norm
 
 
+def path_sigma(sigma, n_paths: int):
+    """Return ``sigma`` as a scalar or a validated (n_paths,) array (per-path vol)."""
+    if np.ndim(sigma) == 0:
+        return float(sigma)
+    sig = np.asarray(sigma, dtype=float).reshape(-1)
+    if sig.shape[0] != n_paths:
+        raise ValueError(f"sigma must be a scalar or have length n_paths={n_paths}, got {sig.shape[0]}")
+    return sig
+
+
 def simulate_gbm_paths(
     s0: float,
     mu: float,
-    sigma: float,
+    sigma,
     T: float,
     n_steps: int,
     n_paths: int,
     seed: int | None = None,
 ) -> np.ndarray:
-    """Simulate GBM price paths; returns array of shape (n_paths, n_steps + 1)."""
+    """Simulate GBM price paths; returns array of shape (n_paths, n_steps + 1).
+
+    ``sigma`` may be a scalar or a per-path array of length ``n_paths``.
+    """
+    sig = path_sigma(sigma, n_paths)
+    sigma = sig[:, None] if np.ndim(sig) else sig
     rng = np.random.default_rng(seed)
     dt = T / n_steps
     z = rng.standard_normal((n_paths, n_steps))
