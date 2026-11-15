@@ -19,7 +19,7 @@ from deephedge.experiments.training_data_study import run_training_data_study
 
 NAMES = {
     "A0_gbm_true_vol": "A0 GBM, known vol", "A1_gbm": "A1 GBM, estimated vol",
-    "A2_garch_t": "A2 GARCH-t", "A3_bootstrap": "A3 Block bootstrap", "A4_real": "A4 Real windows",
+    "A2_garch_t": "A2 GARCH-t", "A2b_garch_nu4": "A2b GARCH-t, ν ≥ 4 (sensitivity)", "A3_bootstrap": "A3 Block bootstrap", "A4_real": "A4 Real windows",
     "A5_finetune": "A5 GBM → real fine-tune", "L_linear": "L Linear correction",
     "delta": "BS delta", "banded_delta": "Delta + band", "no_hedge": "No hedge",
 }
@@ -60,7 +60,7 @@ def write_tables(res, out: Path) -> str:
                              f"[{g['ci_low']:+.3f}, {g['ci_high']:+.3f}] | {g['p']:.3f} |")
     lines += ["", "## Realism of training data (mean over folds)", "",
               "| Source | Excess kurtosis | ACF of abs returns (lags 1–10) | Hill tail index |", "|---|---:|---:|---:|"]
-    for src in ("real", "A1_gbm", "A2_garch_t", "A3_bootstrap"):
+    for src in ("real", "A1_gbm", "A2_garch_t", "A2b_garch_nu4", "A3_bootstrap"):
         rows = [r for r in res["realism"] if r["source"] == src]
         if rows:
             m = lambda k: sum(r[k] for r in rows) / len(rows)
@@ -77,6 +77,19 @@ def write_tables(res, out: Path) -> str:
     return text
 
 
+def merge_results(base: dict, new: dict) -> dict:
+    """Add the rows of arms (and realism sources) that ``base`` does not have yet.
+
+    Rows already in ``base`` are kept as they are, so re-running a subset of arms
+    (e.g. A1 alongside a new sensitivity arm) never overwrites published numbers.
+    """
+    out = dict(base)
+    for key, field in (("summary", "arm"), ("significance", "arm"), ("by_year", "arm"), ("realism", "source")):
+        have = {r[field] for r in base[key]}
+        out[key] = base[key] + [r for r in new[key] if r[field] not in have]
+    return out
+
+
 def main(argv=None) -> dict:
     p = argparse.ArgumentParser(description="Which training data makes a better deep hedger?")
     p.add_argument("--data", default="data/raw/hk")
@@ -86,6 +99,8 @@ def main(argv=None) -> dict:
     p.add_argument("--n-jobs", type=int, default=None)
     p.add_argument("--quick", action="store_true")
     p.add_argument("--from-results", action="store_true", help="redraw tables/charts from results.pkl")
+    p.add_argument("--arms", default=None,
+                   help="comma-separated arms to run; new arms are merged into an existing results.pkl")
     args = p.parse_args(argv)
     out, figs = Path(args.out), Path(args.figures)
     out.mkdir(parents=True, exist_ok=True)
@@ -99,11 +114,16 @@ def main(argv=None) -> dict:
             kw.update(QUICK)
         if "years" in kw:
             kw["years"] = tuple(kw["years"])
+        if args.arms:
+            kw["arms"] = tuple(args.arms.split(","))
         t0 = time.time()
         res = run_training_data_study(load_closes(args.data), n_jobs=args.n_jobs,
                                       log=lambda m: print(f"[{time.time() - t0:6.0f}s] {m}", flush=True), **kw)
         res["runtime_s"] = time.time() - t0
-        (out / "results.pkl").write_bytes(pickle.dumps(res))
+        old = out / "results.pkl"
+        if args.arms and old.exists():
+            res = merge_results(pickle.loads(old.read_bytes()), res)
+        old.write_bytes(pickle.dumps(res))
     print(write_tables(res, out))
     from deephedge.plots.training_data_charts import CHARTS
     for name, fn in CHARTS.items():

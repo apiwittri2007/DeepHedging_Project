@@ -35,9 +35,13 @@ from deephedge.sim.generators import (
 )
 
 ARMS = ("A0_gbm_true_vol", "A1_gbm", "A2_garch_t", "A3_bootstrap", "A4_real", "A5_finetune")
+# Sensitivity arm added after the pre-registered run: GARCH-t with Student-t dof >= 4
+# (finite shock kurtosis), motivated only by the pre-year realism check.
+SENSITIVITY = ("A2b_garch_nu4",)
+ALL_ARMS = ARMS + SENSITIVITY
 BENCHMARKS = ("delta", "banded_delta", "no_hedge", "L_linear")
 K, T, HORIZON = 100.0, 21 / TRADING_DAYS, 21
-SYNTHETIC = ("A0_gbm_true_vol", "A1_gbm", "A2_garch_t", "A3_bootstrap")
+SYNTHETIC = ("A0_gbm_true_vol", "A1_gbm", "A2_garch_t", "A3_bootstrap", "A2b_garch_nu4")
 
 
 def _no_hedge(feats):
@@ -66,7 +70,7 @@ def _training_sets(f: dict, n_train: int, mean_block: float, seed: int) -> dict:
     real: Windows = f["real_train"]
     rets = {k: v for k, v in f["returns"].items() if len(v) >= N_DAYS}
     vols = real.trailing_vol
-    sets = {a: None for a in ARMS}
+    sets = {a: None for a in ALL_ARMS}
     if len(real) and len(vols):
         sig = rng.choice(vols, n_train)
         sets["A0_gbm_true_vol"] = (simulate_gbm_paths(100.0, 0.0, sig, T, HORIZON, n_train,
@@ -82,6 +86,9 @@ def _training_sets(f: dict, n_train: int, mean_block: float, seed: int) -> dict:
         if "_garch" not in f:                    # fit once per fold, reuse across seeds
             f["_garch"] = {k: fit_garch_t(v) for k, v in garch.items()}
         sets["A2_garch_t"] = windows_from_returns(_garch_draw(f, n_train, rng))
+        if "_garch4" not in f:
+            f["_garch4"] = {k: fit_garch_t(v, nu_min=4.0) for k, v in garch.items()}
+        sets["A2b_garch_nu4"] = windows_from_returns(_garch_draw(f, n_train, rng, key="_garch4"))
     return {a: _clean(v) for a, v in sets.items()}
 
 
@@ -137,7 +144,7 @@ def fold_realism(f: dict, sets: dict, n_train: int, mean_block: float, seed: int
     real_lr = _real_blocks(f["returns"])
     if len(real_lr):
         rows.append({"year": f["year"], "source": "real", **_realism(real_lr)})
-    for a in SYNTHETIC[1:]:                      # A0 has the same returns as A1 (GBM)
+    for a in SYNTHETIC[1:]:                      # A0 has the same returns as A1 (GBM); unrun arms are None
         if sets[a] is not None:
             rows.append({"year": f["year"], "source": a,
                          **_realism(_synthetic_lr(f, a, n_train, mean_block, seed))})
@@ -169,6 +176,7 @@ def run_training_data_study(
     n_boot: int = 2000,
     n_jobs: int | None = None,
     log=None,
+    arms=ARMS,
 ) -> dict:
     cfg = dict(epochs=epochs, lr=lr, batch_size=batch_size, finetune_epochs=finetune_epochs,
                finetune_lr=finetune_lr, layer_sizes=tuple(layer_sizes))
@@ -182,7 +190,7 @@ def run_training_data_study(
         test = f["test"]
         sets_by_seed = {s: _training_sets(f, n_train, mean_block, s) for s in seeds}
         first = sets_by_seed[seeds[0]]
-        unavailable = sorted(a for a in ARMS if first[a] is None)
+        unavailable = sorted(a for a in arms if first[a] is None)
         fold_sizes.append({"year": f["year"], "n_test": len(test), "n_real_train": len(f["real_train"]),
                            "n_stocks_returns": len(f["returns"]),
                            "n_stocks_garch": len(f.get("_garch", {})), "unavailable": unavailable})
@@ -200,11 +208,11 @@ def run_training_data_study(
                 bench.setdefault((name, cost), {})[fi] = pnl
             for s in seeds:
                 sets = sets_by_seed[s]
-                for a in ARMS:
+                for a in arms:
                     if a == "A5_finetune" or sets[a] is None:
                         continue
                     ft = sets["A5_finetune"] if a == "A1_gbm" else None
-                    job_seed = 10_000 * s + 100 * fi + ARMS.index(a)
+                    job_seed = 10_000 * s + 100 * fi + ALL_ARMS.index(a)
                     jobs.append((a, cost, job_seed, sets[a], ft, test.paths, test.trailing_vol, cfg))
                     keys.append((fi, cost, s))
     log(f"{len(jobs)} training jobs over {len(folds)} folds")
@@ -231,17 +239,17 @@ def _synthetic_lr(f, arm, n_train, mean_block, seed):
     rets = {k: v for k, v in f["returns"].items() if len(v) >= N_DAYS}
     if arm == "A3_bootstrap":
         return sample_mixture(rets, n_train, lambda r, k, g: stationary_bootstrap(r, k, N_DAYS, mean_block, g), rng)
-    return _garch_draw(f, n_train, rng)
+    return _garch_draw(f, n_train, rng, key="_garch4" if arm == "A2b_garch_nu4" else "_garch")
 
 
-def _garch_draw(f, n, rng):
+def _garch_draw(f, n, rng, key="_garch"):
     """GARCH-t paths per stock, started at that stock's sample variance.
 
     Starting at the sample variance (not the model's unconditional variance)
     keeps near-integrated fits (alpha + beta close to 1, where the unconditional
     variance explodes) on the scale the stock actually traded at.
     """
-    items = {k: (m, float(np.var(f["returns"][k]))) for k, m in f["_garch"].items()}
+    items = {k: (m, float(np.var(f["returns"][k]))) for k, m in f[key].items()}
     weights = {k: len(f["returns"][k]) for k in items}
     return sample_mixture(items, n, lambda mv, k, g: simulate_garch_t(mv[0], k, N_DAYS, g, h0=mv[1]),
                           rng, weights=weights)
@@ -267,7 +275,7 @@ def _assemble(folds, cost_grid, focus_cost, seeds, deep, bench, fold_sizes, real
     for (name, cost), by_fold in bench.items():
         p, m = pooled(by_fold)
         series[(name, cost)] = (p[None, :], m)
-    for arm in ARMS:
+    for arm in ALL_ARMS:
         for cost in cost_grid:
             per_seed = [deep.get((arm, cost, s)) for s in seeds]
             if any(x is None for x in per_seed):
@@ -283,7 +291,7 @@ def _assemble(folds, cost_grid, focus_cost, seeds, deep, bench, fold_sizes, real
         summary.append({"arm": arm, "cost": cost, "cvar_mean": float(cv.mean()),
                         "cvar_sd": float(cv.std(ddof=1)) if len(cv) > 1 else 0.0,
                         "mean": float(p.mean()), "n": int(m.sum()), "n_seeds": len(cv)})
-        if arm in ARMS or arm == "L_linear":
+        if arm in ALL_ARMS or arm == "L_linear":
             for vs in ("delta", "A1_gbm"):
                 if vs == arm or (vs, cost) not in series:
                     continue

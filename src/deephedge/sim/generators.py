@@ -80,16 +80,16 @@ def garch_conditional_variance(model: GarchT, r: np.ndarray) -> np.ndarray:
     return np.maximum(h, 1e-12)
 
 
-def _unpack(theta: np.ndarray) -> GarchT:
+def _unpack(theta: np.ndarray, nu_min: float = 2.05) -> GarchT:
     mu, a, b, c, d = np.clip(theta, -50, 50)
     persistence = 0.9999 / (1 + np.exp(-b))
     share = 1 / (1 + np.exp(-c))
     return GarchT(mu=mu, omega=np.exp(a), alpha=persistence * share,
-                  beta=persistence * (1 - share), nu=2.05 + np.exp(d))
+                  beta=persistence * (1 - share), nu=nu_min + np.exp(d))
 
 
-def _neg_loglik(theta: np.ndarray, r: np.ndarray) -> float:
-    m = _unpack(theta)
+def _neg_loglik(theta: np.ndarray, r: np.ndarray, nu_min: float = 2.05) -> float:
+    m = _unpack(theta, nu_min)
     h = garch_conditional_variance(m, r)
     e2 = (r - m.mu) ** 2
     nu = m.nu
@@ -98,17 +98,21 @@ def _neg_loglik(theta: np.ndarray, r: np.ndarray) -> float:
     return -float(ll.sum())
 
 
-def fit_garch_t(r: np.ndarray) -> GarchT:
-    """Maximum-likelihood GARCH(1,1)-t fit (needs at least 500 returns)."""
+def fit_garch_t(r: np.ndarray, nu_min: float = 2.05) -> GarchT:
+    """Maximum-likelihood GARCH(1,1)-t fit (needs at least 500 returns).
+
+    ``nu_min`` is the lowest allowed Student-t degrees of freedom; 4 keeps the
+    shock kurtosis finite (used by the A2b sensitivity arm).
+    """
     r = np.asarray(r, dtype=float)
     if len(r) < MIN_GARCH_OBS:
         raise ValueError(f"GARCH fit needs at least {MIN_GARCH_OBS} returns, got {len(r)}")
     var = r.var()
     p0, share0 = 0.95, 0.1 / 0.95
     theta0 = np.array([r.mean(), np.log(var * (1 - p0)), np.log(p0 / (0.9999 - p0)),
-                       np.log(share0 / (1 - share0)), np.log(8.0 - 2.05)])
-    res = minimize(_neg_loglik, theta0, args=(r,), method="L-BFGS-B")
-    return _unpack(res.x)
+                       np.log(share0 / (1 - share0)), np.log(max(8.0 - nu_min, 0.5))])
+    res = minimize(_neg_loglik, theta0, args=(r, nu_min), method="L-BFGS-B")
+    return _unpack(res.x, nu_min)
 
 
 def simulate_garch_t(model: GarchT, n: int, n_days: int, rng: np.random.Generator,

@@ -36,7 +36,8 @@ Further findings:
 - The earlier single-split, single-seed result (deep − delta = −0.25 at 15 bps, significant) shrinks
   to −0.05 [−0.20, +0.08] under walk-forward and 3 seeds. Seed sd (0.03–0.11) is the size of the effect.
 - Realism: block bootstrap matches real tails and clustering best (kurtosis 7.7, Hill 3.4, ACF 0.04);
-  GBM has none (0.1, 6.9, −0.01); GARCH-t overshoots badly (136, 3.2, 0.11) and makes training unstable.
+  GBM has none (0.1, 6.9, −0.01); GARCH-t overshoots badly (136, 3.2, 0.11) and makes training unstable;
+  with ν ≥ 4 (A2b, post hoc) it is closer (24, 3.3, 0.07) and stable, but no better than delta.
   Realism did not translate into better hedging beyond noise.
 - Stability: gaps vary in sign year to year for every deep arm; L is negative in 10 of 11 years.
 - Data quantity: A4's gap shows no trend with 22k → 72k real training windows.
@@ -44,7 +45,7 @@ Further findings:
 Figures: `figures/training_data/td_*.png`.
 
 ## 5. Robustness / to do before submission
-- GARCH-t variant with a tail floor (decision pending)
+- Done: sensitivity arm A2b (GARCH-t with ν ≥ 4). Stable, kurtosis 24, CVaR 6.34 at 15 bps, vs delta −0.01 [−0.26, +0.24]. The conclusion is unchanged. Label it as post hoc in the paper.
 - More seeds (5–10) for the primary comparison; Holm correction across arms.
 - Hull & White (2017) minimum-variance delta as a second linear benchmark (reference to verify).
 

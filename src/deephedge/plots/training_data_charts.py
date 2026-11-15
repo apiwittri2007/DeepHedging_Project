@@ -17,14 +17,14 @@ from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm  # noqa: E40
 from deephedge.plots.real_charts import GRID, INK, INK2, NEUTRAL, SURFACE, _axes, _fig, _save  # noqa: E402
 
 BLUE, ORANGE, AQUA, VIOLET, RED = "#2a78d6", "#eb6834", "#1baf7a", "#6250d6", "#e34948"
-DEEP = ("A0_gbm_true_vol", "A1_gbm", "A2_garch_t", "A3_bootstrap", "A4_real", "A5_finetune")
+DEEP = ("A0_gbm_true_vol", "A1_gbm", "A2_garch_t", "A2b_garch_nu4", "A3_bootstrap", "A4_real", "A5_finetune")
 SHORT = {
     "A0_gbm_true_vol": "A0 GBM, known vol", "A1_gbm": "A1 GBM, est. vol", "A2_garch_t": "A2 GARCH-t",
-    "A3_bootstrap": "A3 Block bootstrap", "A4_real": "A4 Real windows", "A5_finetune": "A5 GBM→real",
+    "A2b_garch_nu4": "A2b GARCH-t ν≥4*", "A3_bootstrap": "A3 Block bootstrap", "A4_real": "A4 Real windows", "A5_finetune": "A5 GBM→real",
     "L_linear": "L Linear (no NN)", "delta": "BS delta", "banded_delta": "Delta + band", "no_hedge": "No hedge",
     "real": "Real data",
 }
-TICK = {"real": "Real", "A1_gbm": "A1 GBM", "A2_garch_t": "A2 GARCH", "A3_bootstrap": "A3 Bootstrap"}
+TICK = {"real": "Real", "A1_gbm": "A1 GBM", "A2_garch_t": "A2 GARCH", "A2b_garch_nu4": "A2b ν≥4", "A3_bootstrap": "A3 Boot."}
 DIVERGING = LinearSegmentedColormap.from_list("gap", [BLUE, "#f0efec", RED])
 
 
@@ -172,9 +172,9 @@ def chart_gap_by_year(res, path):
 
 
 def chart_realism(res, path):
-    sources = [s for s in ("real", "A1_gbm", "A2_garch_t", "A3_bootstrap")
+    sources = [s for s in ("real", "A1_gbm", "A2_garch_t", "A2b_garch_nu4", "A3_bootstrap")
                if any(r["source"] == s for r in res["realism"])]
-    color = {"real": INK, "A1_gbm": BLUE, "A2_garch_t": ORANGE, "A3_bootstrap": AQUA}
+    color = {"real": INK, "A1_gbm": BLUE, "A2_garch_t": ORANGE, "A2b_garch_nu4": VIOLET, "A3_bootstrap": AQUA}
     stats = [("excess_kurtosis", "Excess kurtosis of vol-scaled\nhedge-day returns (fat tails)"),
              ("acf_abs_1_10", "Autocorr. of |returns|, lags 1–10\n(volatility clustering)"),
              ("hill_index", "Hill tail index\n(lower = fatter tail)")]
@@ -193,14 +193,15 @@ def chart_realism(res, path):
         ax.grid(axis="x", visible=False)
     ax = axes[3]
     _axes(ax, f"Realism vs tail risk ({res['focus_cost']*1e4:.0f} bps)")
-    arm_of = {"real": "A4_real", "A1_gbm": "A1_gbm", "A2_garch_t": "A2_garch_t", "A3_bootstrap": "A3_bootstrap"}
+    arm_of = {"real": "A4_real", "A1_gbm": "A1_gbm", "A2_garch_t": "A2_garch_t", "A2b_garch_nu4": "A2b_garch_nu4",
+              "A3_bootstrap": "A3_bootstrap"}
     for s in sources:
         r = _row(res, "summary", arm=arm_of[s], cost=res["focus_cost"])
         if r is None:
             continue
         x = means["hill_index"][s]
         ax.plot(x, r["cvar_mean"], "o", ms=9, color=color[s], markeredgecolor=SURFACE, markeredgewidth=2)
-        off = {"real": (8, 6), "A3_bootstrap": (8, -12)}.get(s, (8, 6))
+        off = {"real": (10, -1), "A2b_garch_nu4": (4, 18), "A3_bootstrap": (8, -14)}.get(s, (8, 6))
         ax.annotate(SHORT[arm_of[s]], (x, r["cvar_mean"]), xytext=off, textcoords="offset points",
                     ha="right" if off[0] < 0 else "left", fontsize=8, color=INK2)
     ax.set_xlabel("Hill tail index of training returns (lower = fatter)")

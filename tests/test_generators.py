@@ -65,3 +65,9 @@ def test_mixture_weights():
     out = sample_mixture(per, 5000, lambda x, n, g: np.tile(x[:84], (n, 1)), rng)
     assert out.shape == (5000, 84)
     assert np.isclose((out[:, 0] == 1).mean(), 0.9, atol=0.02)
+
+
+def test_garch_nu_floor():
+    m = GarchT(mu=0.0, omega=4e-6, alpha=0.1, beta=0.85, nu=2.6)
+    r = simulate_garch_t(m, 1, 4000, np.random.default_rng(6))[0]
+    assert fit_garch_t(r, nu_min=4.0).nu >= 4.0

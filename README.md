@@ -86,13 +86,14 @@ Full tables: [`results/real/real_summary.md`](results/real/real_summary.md) · s
 ## Part 3 — Which training data makes a better hedger? (walk-forward, 3 seeds)
 
 Pre-registered design: [`docs/superpowers/specs/2026-11-15-training-data-study-design.md`](docs/superpowers/specs/2026-11-15-training-data-study-design.md).
-Same 2,650 real test windows (2016–2026), but now **walk-forward**: for each test year, every model may only use prices dated before 1 January of that year. 6 training arms × 6 costs × 3 seeds × 11 years = 990 training jobs (~40 min on 2 CPUs).
+Same 2,650 real test windows (2016–2026), but now **walk-forward**: for each test year, every model may only use prices dated before 1 January of that year. 6 training arms × 6 costs × 3 seeds × 11 years = 990 training jobs (~40 min on 2 CPUs), plus one sensitivity arm.
 
 | Arm | Training data |
 |---|---|
 | A0 | GBM, trader knows the true vol (the Part 2 method) |
 | A1 | GBM, trader *estimates* vol from 63 warm-up days, as on real data |
 | A2 | GARCH(1,1) with Student-t shocks, fitted per stock |
+| A2b | *Sensitivity, added after the main run:* A2 with Student-t ν ≥ 4 (finite tail kurtosis) |
 | A3 | Stationary block bootstrap of each stock's real returns |
 | A4 | Real overlapping windows only |
 | A5 | A1, then fine-tuned on A4 |
@@ -108,6 +109,7 @@ Same 2,650 real test windows (2016–2026), but now **walk-forward**: for each t
 | A0 GBM, known vol | −0.05 | [−0.20, +0.08] | +0.03 |
 | A1 GBM, est. vol | −0.09 | [−0.26, +0.07] | — |
 | A2 GARCH-t | +2.02 | [+0.31, +3.96] | +2.11 (worse) |
+| A2b GARCH-t, ν ≥ 4* | −0.01 | [−0.26, +0.24] | +0.08 |
 | A3 Block bootstrap | −0.12 | [−0.34, +0.12] | −0.03 |
 | A4 Real windows | +0.01 | [−0.22, +0.24] | +0.10 |
 | A5 GBM → real | −0.12 | [−0.32, +0.09] | −0.03 |
@@ -118,7 +120,9 @@ What this says, plainly:
 2. **The simple linear correction L is the only method that beats delta significantly at 0–25 bps**, echoing Ruf & Wang (2022): a regression on delta matches or beats the network.
 3. **H3 (gain grows with cost) holds:** at 50 bps A0, A1 and A5 beat delta significantly (−0.27, −0.31, −0.38).
 4. **More realistic training data did not help (H1 not supported).** The block bootstrap is the most realistic generator (below) and among the best arms, but not significantly better than plain GBM. Training on real windows alone (A4) is no better than delta, even in later years with 3× more data.
-5. **GARCH-t training is unstable:** fitted to pre-year data it produces far fatter tails than reality (kurtosis 136 vs 6.7), and some seeds blow up (2022 especially).
+5. **GARCH-t training is unstable:** fitted to pre-year data it produces far fatter tails than reality (kurtosis 136 vs 6.7), and some seeds blow up (2022 especially). The sensitivity arm A2b (ν ≥ 4, kurtosis 24) trains stably but only ties delta (−0.01), so a better GARCH does not change the conclusion.
+
+\* A2b was added after seeing the main results. Its only justification is the pre-year realism check, so treat it as a sensitivity check, not a pre-registered arm.
 
 ![Gap by cost](figures/training_data/td_gap_by_cost.png)
 ![Gap by year](figures/training_data/td_gap_by_year.png)
