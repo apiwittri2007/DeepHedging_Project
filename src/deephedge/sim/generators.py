@@ -81,7 +81,7 @@ def garch_conditional_variance(model: GarchT, r: np.ndarray) -> np.ndarray:
 
 
 def _unpack(theta: np.ndarray) -> GarchT:
-    mu, a, b, c, d = theta
+    mu, a, b, c, d = np.clip(theta, -50, 50)
     persistence = 0.9999 / (1 + np.exp(-b))
     share = 1 / (1 + np.exp(-c))
     return GarchT(mu=mu, omega=np.exp(a), alpha=persistence * share,

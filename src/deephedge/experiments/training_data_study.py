@@ -81,10 +81,7 @@ def _training_sets(f: dict, n_train: int, mean_block: float, seed: int) -> dict:
     if garch:
         if "_garch" not in f:                    # fit once per fold, reuse across seeds
             f["_garch"] = {k: fit_garch_t(v) for k, v in garch.items()}
-        models = f["_garch"]
-        weights = {k: len(v) for k, v in garch.items()}
-        sets["A2_garch_t"] = windows_from_returns(sample_mixture(
-            models, n_train, lambda m, k, g: simulate_garch_t(m, k, N_DAYS, g), rng, weights=weights))
+        sets["A2_garch_t"] = windows_from_returns(_garch_draw(f, n_train, rng))
     return {a: _clean(v) for a, v in sets.items()}
 
 
@@ -220,9 +217,20 @@ def _synthetic_lr(f, arm, n_train, mean_block, seed):
     rets = {k: v for k, v in f["returns"].items() if len(v) >= N_DAYS}
     if arm == "A3_bootstrap":
         return sample_mixture(rets, n_train, lambda r, k, g: stationary_bootstrap(r, k, N_DAYS, mean_block, g), rng)
-    models = f["_garch"]
-    weights = {k: len(f["returns"][k]) for k in models}
-    return sample_mixture(models, n_train, lambda m, k, g: simulate_garch_t(m, k, N_DAYS, g), rng, weights=weights)
+    return _garch_draw(f, n_train, rng)
+
+
+def _garch_draw(f, n, rng):
+    """GARCH-t paths per stock, started at that stock's sample variance.
+
+    Starting at the sample variance (not the model's unconditional variance)
+    keeps near-integrated fits (alpha + beta close to 1, where the unconditional
+    variance explodes) on the scale the stock actually traded at.
+    """
+    items = {k: (m, float(np.var(f["returns"][k]))) for k, m in f["_garch"].items()}
+    weights = {k: len(f["returns"][k]) for k in items}
+    return sample_mixture(items, n, lambda mv, k, g: simulate_garch_t(mv[0], k, N_DAYS, g, h0=mv[1]),
+                          rng, weights=weights)
 
 
 def _assemble(folds, cost_grid, focus_cost, seeds, deep, bench, fold_sizes, realism, n_boot):
