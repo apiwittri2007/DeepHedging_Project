@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import numpy as np
 
-from .delta import banded_delta_policy, delta_policy
-from .gbm import simulate_gbm_paths
-from .hedge import simulate_hedged_pnl
-from .metrics import summary
-from .network import make_policy
-from .train import train_deep_hedger
+from deephedge.hedging.delta import banded_delta_policy, delta_policy
+from deephedge.sim.gbm import simulate_gbm_paths
+from deephedge.hedging.hedge import simulate_hedged_pnl
+from deephedge.hedging.metrics import summary
+from deephedge.models.network import make_policy
+from deephedge.models.train import train_deep_hedger
 
 
 def _evaluate(policy, paths, cost, K, r, sigma, T) -> np.ndarray:
@@ -69,8 +69,8 @@ def _example_holdings(path, params, K, r, sigma, T, n_steps):
     """Deep vs delta holding along one sample path (for a plot)."""
     import autograd.numpy as anp
 
-    from .gbm import bs_call_delta
-    from .network import mlp_forward
+    from deephedge.sim.gbm import bs_call_delta
+    from deephedge.models.network import mlp_forward
 
     dt = T / n_steps
     deep, delta, spot = [], [], []

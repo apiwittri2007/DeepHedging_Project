@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from deephedge.realdata import build_windows, load_closes
+from deephedge.data.realdata import build_windows, load_closes
 
 
 def series(n, seed=0, vol=0.02, start="2010-01-04"):

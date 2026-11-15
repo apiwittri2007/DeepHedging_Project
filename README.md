@@ -7,7 +7,7 @@
 1. **Simulation (Monte Carlo):** train a deep hedger to minimise the tail risk (CVaR₉₅) of a short call's hedging P&L under proportional costs, on GBM paths where Black–Scholes delta is the provably optimal zero-cost hedge.
 2. **Real Hong Kong data:** take the hedger trained *only on simulation* and run it out-of-sample on **2,650 real one-month windows from 29 Hang Seng Tech stocks (2016–2026)**, against delta hedging, with month-clustered bootstrap significance tests.
 
-Every number and chart here is produced by the code in this repo (`python -m deephedge`, `python -m deephedge.real`). NumPy + [`autograd`](https://github.com/HIPS/autograd), no deep-learning framework; 53 tests.
+Every number and chart here is produced by the code in this repo (`scripts/run_all.sh` regenerates all of it in about a minute). NumPy + [`autograd`](https://github.com/HIPS/autograd), no deep-learning framework; 54 tests.
 
 > **One-paragraph summary.** In simulation the deep hedger only matches delta at zero cost — it can't beat the optimal hedge — but pulls ahead as costs rise, by learning to trade less. On real HK tech stocks, tail risk is about **twice** what the GBM simulation predicts (returns have excess kurtosis ≈ 7, and hedging P&L is mostly a bet on realised vs assumed volatility, correlation 0.85). Even so, the cost advantage **survives out-of-sample**: at a realistic HK stock-trading cost of 15 bps per side, the deep hedger's CVaR₉₅ is **6.10 vs 6.35** for delta (−4%, 95% CI [−0.35, −0.14], month-clustered bootstrap), and the gap widens with cost. At 0–5 bps delta is still better — as theory says it should be.
 
@@ -25,15 +25,15 @@ Every number and chart here is produced by the code in this repo (`python -m dee
 | 20 | 4.16 | **4.15** | 39.0 |
 | 50 | **4.68** | 5.12 | 39.0 |
 
-![CVaR vs cost (simulation)](docs/img/cvar_vs_cost.png)
-![Example hedge path](docs/img/example_hedge.png)
+![CVaR vs cost (simulation)](figures/sim/cvar_vs_cost.png)
+![Example hedge path](figures/sim/example_hedge.png)
 
 ---
 
 ## Part 2 — Real Hong Kong data (out-of-sample)
 
 ### Data — free, real, reproducible
-Daily split/dividend-adjusted closing prices of **29 Hang Seng Tech constituents** (Tencent `0700`, Alibaba `9988`, Meituan `3690`, Xiaomi `1810`, SMIC `0981`, Lenovo `0992`, …), 2000 → 2026-11-03, from Yahoo Finance via [`zjplab/US-Trading-Data`](https://github.com/zjplab/US-Trading-Data) (GPL-3.0, refreshed daily). Stored in [`data/hk/`](data/hk) with a [NOTICE](data/hk/NOTICE.md); regenerate with `scripts/fetch_hk_data.py`.
+Daily split/dividend-adjusted closing prices of **29 Hang Seng Tech constituents** (Tencent `0700`, Alibaba `9988`, Meituan `3690`, Xiaomi `1810`, SMIC `0981`, Lenovo `0992`, …), 2000 → 2026-11-03, from Yahoo Finance via [`zjplab/US-Trading-Data`](https://github.com/zjplab/US-Trading-Data) (GPL-3.0, refreshed daily). Stored in [`data/raw/hk/`](data/raw/hk) with a [NOTICE](data/raw/hk/NOTICE.md); regenerate with `scripts/fetch_hk_data.py`.
 
 ### Protocol (no look-ahead)
 - **Contract:** sell a 1-month (21 trading days) ATM call on a stock; hedge daily with the stock.
@@ -43,14 +43,14 @@ Daily split/dividend-adjusted closing prices of **29 Hang Seng Tech constituents
 - **Costs:** 0–50 bps per side; **15 bps ≈ realistic** for HK stocks (stamp duty alone is 10 bps).
 
 ### 1. Real returns are not GBM
-![Fat tails](docs/img/real/real_fat_tails.png)
+![Fat tails](figures/real/real_fat_tails.png)
 
 Returns scaled by the trader's own vol still have excess kurtosis ≈ 7: 0.7% of days move more than 4σ, against 0.006% under a normal. A model trained on GBM has never seen these jumps.
 
-![Sample paths](docs/img/real/real_sample_paths.png)
+![Sample paths](figures/real/real_sample_paths.png)
 
 ### 2. The cost advantage survives out-of-sample
-![CVaR vs cost, simulated vs real](docs/img/real/real_cvar_vs_cost.png)
+![CVaR vs cost, simulated vs real](figures/real/real_cvar_vs_cost.png)
 
 | Cost (bps) | Deep − delta CVaR₉₅ | 95% CI (month-clustered) | Deep better? |
 |---:|---:|---|---|
@@ -61,33 +61,35 @@ Returns scaled by the trader's own vol still have excess kurtosis ≈ 7: 0.7% of
 | 25 | −0.32 | [−0.47, −0.19] | yes, significant |
 | 50 | −0.45 | [−0.63, −0.27] | yes, significant |
 
-![Significance](docs/img/real/real_significance.png)
+![Significance](figures/real/real_significance.png)
 
 The bootstrap resamples whole **calendar months**, not single windows. Stocks hit by the same market shock are not treated as independent evidence, so these intervals are deliberately conservative.
 
 ### 3. Why real tail risk is ~2× the simulated one
-![Vol misspecification](docs/img/real/real_vol_misspecification.png)
+![Vol misspecification](figures/real/real_vol_misspecification.png)
 
 On real data, delta-hedging P&L is mostly a **bet on volatility**: sell the option with 50% vol and the stock realises 30%, and you keep the difference; get it the other way round and you lose (correlation 0.85). No hedging rule can remove this risk, which is why every hedger's CVaR roughly doubles from simulation to reality. The deep hedger's edge is the part it *can* control: trading cost.
 
 ### 4. By market regime (15 bps)
-![Periods](docs/img/real/real_periods.png)
+![Periods](figures/real/real_periods.png)
 
 The deep hedger has lower tail risk over the whole test, the crackdown and 2023 onwards. It is worse during the COVID crash, but that's only 84 windows, so CVaR₉₅ there rests on about 4 observations.
 
-![P&L distributions](docs/img/real/real_pnl_hist.png)
+![P&L distributions](figures/real/real_pnl_hist.png)
 
-Full tables: [`docs/real_results.md`](docs/real_results.md).
+Full tables: [`results/real/real_summary.md`](results/real/real_summary.md) · simulation: [`results/sim/summary.md`](results/sim/summary.md).
 
 ---
 
 ## Run it
 
 ```bash
-python -m pip install -r requirements.txt
-python -m pytest                                   # 53 tests
-python -m deephedge                                # simulation study -> results/ (~30 s)
-python -m deephedge.real --data data/hk            # real HK study -> results/real (~30 s)
+python -m pip install -e ".[dev]"
+bash scripts/run_all.sh          # tests + both studies -> results/ and figures/ (~1 min)
+
+# or one study at a time, settings in configs/
+python -m deephedge.experiments.run_sim  --config configs/sim.json
+python -m deephedge.experiments.run_real --config configs/real.json
 ```
 
 ## Limitations (read before quoting a number)
@@ -101,19 +103,20 @@ python -m deephedge.real --data data/hk            # real HK study -> results/re
 ## Project layout
 
 ```
-deephedge/
-  gbm.py              GBM paths (scalar or per-path vol) + Black-Scholes price/delta
-  hedge.py            autograd-differentiable, causal hedging P&L engine
-  delta.py            BS-delta / no-trade-band benchmarks
-  network.py          small MLP policy
-  metrics.py          CVaR, Rockafellar-Uryasev objective, paired (clustered) bootstrap
-  train.py            CVaR training loop (autograd + Adam)
-  experiment.py       simulation study;  __main__.py  its CLI + charts
-  realdata.py         HK prices -> no-look-ahead option windows
-  real_experiment.py  calibrate pre-2016, train on simulation, test on real 2016-2026
-  real.py             real-data CLI + 7 charts
-data/hk/              29 Hang Seng Tech stocks (Date, Close) + NOTICE
-scripts/              fetch_hk_data.py
-docs/                 PROJECT_SUMMARY.md, INTERVIEW.md, real_results.md, specs, plans, figures
-tests/                53 tests
+DeepHedging_Project/
+├── src/deephedge/
+│   ├── sim/            gbm.py — GBM paths (scalar or per-path vol), Black–Scholes price/delta
+│   ├── hedging/        hedge.py (causal, differentiable P&L engine), delta.py, costs.py, metrics.py
+│   ├── models/         network.py (MLP policy), train.py (CVaR training, autograd + Adam)
+│   ├── data/           realdata.py — HK prices -> no-look-ahead option windows
+│   ├── experiments/    sim_study.py, real_study.py, run_sim.py, run_real.py (CLIs)
+│   └── plots/          sim_charts.py, real_charts.py
+├── data/raw/hk/        29 Hang Seng Tech stocks (Date, Close) + licence NOTICE
+├── configs/            sim.json, real.json — settings for each study
+├── scripts/            run_all.sh (reproduce everything), fetch_hk_data.py
+├── results/            sim/, real/ — tables
+├── figures/            sim/, real/ — every chart in this README
+├── paper/              outline + references for the research paper
+├── docs/               PROJECT_SUMMARY.md, INTERVIEW.md, design specs and plans
+└── tests/              54 tests
 ```

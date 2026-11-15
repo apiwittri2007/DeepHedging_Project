@@ -1,9 +1,9 @@
 import autograd.numpy as anp
 import numpy as np
 
-from deephedge.delta import banded_delta_policy, delta_policy
-from deephedge.gbm import simulate_gbm_paths
-from deephedge.hedge import simulate_hedged_pnl
+from deephedge.hedging.delta import banded_delta_policy, delta_policy
+from deephedge.sim.gbm import simulate_gbm_paths
+from deephedge.hedging.hedge import simulate_hedged_pnl
 
 
 def feats(ttm, logm, shares):

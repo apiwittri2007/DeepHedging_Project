@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import autograd.numpy as anp
 
-from .gbm import bs_call_delta
+from deephedge.sim.gbm import bs_call_delta
 
 _TTM_FLOOR = 1e-8
 

@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from deephedge.real_experiment import run_real_experiment
-from deephedge.realdata import build_windows
+from deephedge.experiments.real_study import run_real_experiment
+from deephedge.data.realdata import build_windows
 
 STRATS = {"deep", "delta", "banded_delta", "no_hedge"}
 

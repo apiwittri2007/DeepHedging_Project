@@ -12,10 +12,10 @@ import numpy as np
 from autograd import grad
 from autograd.misc.flatten import flatten
 
-from .gbm import path_sigma
-from .hedge import simulate_hedged_pnl
-from .metrics import ru_cvar_objective
-from .network import init_params, make_policy
+from deephedge.sim.gbm import path_sigma
+from deephedge.hedging.hedge import simulate_hedged_pnl
+from deephedge.hedging.metrics import ru_cvar_objective
+from deephedge.models.network import init_params, make_policy
 
 
 def train_deep_hedger(

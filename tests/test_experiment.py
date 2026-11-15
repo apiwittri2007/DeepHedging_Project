@@ -1,5 +1,5 @@
-from deephedge.__main__ import main
-from deephedge.experiment import run_experiment
+from deephedge.experiments.run_sim import main
+from deephedge.experiments.sim_study import run_experiment
 
 
 def test_quick_experiment_structure():
@@ -18,8 +18,19 @@ def test_deep_not_worse_than_no_hedge_at_cost():
     assert by["deep"] < by["no_hedge"]  # hedging at all beats not hedging
 
 
-def test_cli_quick_writes_outputs(tmp_path):
-    main(["--quick", "--out", str(tmp_path)])
-    for f in ("summary.csv", "summary.md", "cvar_vs_cost.png", "pnl_hist.png",
-              "training.png", "example_hedge.png"):
-        assert (tmp_path / f).exists(), f
+def test_cli_quick_writes_tables_and_figures(tmp_path):
+    out, figs = tmp_path / "results", tmp_path / "figures"
+    main(["--quick", "--out", str(out), "--figures", str(figs)])
+    for f in ("summary.csv", "summary.md"):
+        assert (out / f).exists(), f
+    for f in ("cvar_vs_cost.png", "pnl_hist.png", "training.png", "example_hedge.png"):
+        assert (figs / f).exists(), f
+
+
+def test_cli_config_overrides(tmp_path):
+    import json
+    cfg = tmp_path / "sim.json"
+    cfg.write_text(json.dumps({"n_steps": 6, "epochs": 5, "n_train": 300, "n_eval": 300,
+                               "cost_grid": [0.002], "focus_cost": 0.002}))
+    res = main(["--config", str(cfg), "--out", str(tmp_path / "r"), "--figures", str(tmp_path / "f")])
+    assert {r["cost"] for r in res["rows"]} == {0.002}

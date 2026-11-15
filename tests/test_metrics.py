@@ -1,6 +1,6 @@
 import numpy as np
 
-from deephedge.metrics import cvar, ru_cvar_objective, summary
+from deephedge.hedging.metrics import cvar, ru_cvar_objective, summary
 
 
 def test_cvar_known_array():
@@ -23,7 +23,7 @@ def test_summary_keys():
 
 
 def test_paired_bootstrap_detects_and_rejects():
-    from deephedge.metrics import paired_bootstrap_cvar_diff
+    from deephedge.hedging.metrics import paired_bootstrap_cvar_diff
     rng = np.random.default_rng(0)
     base = rng.normal(0, 1, 4000)
     same = paired_bootstrap_cvar_diff(base, base + rng.normal(0, 0.01, 4000), n_boot=400, seed=1)
@@ -35,7 +35,7 @@ def test_paired_bootstrap_detects_and_rejects():
 
 
 def test_paired_bootstrap_clustered_wider_with_common_shocks():
-    from deephedge.metrics import paired_bootstrap_cvar_diff
+    from deephedge.hedging.metrics import paired_bootstrap_cvar_diff
     rng = np.random.default_rng(0)
     n_groups, per = 60, 30
     groups = np.repeat(np.arange(n_groups), per)

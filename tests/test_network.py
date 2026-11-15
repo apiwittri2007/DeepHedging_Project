@@ -2,7 +2,7 @@ import autograd.numpy as anp
 import numpy as np
 from autograd import grad
 
-from deephedge.network import init_params, make_policy, mlp_forward
+from deephedge.models.network import init_params, make_policy, mlp_forward
 
 
 def test_param_shapes():

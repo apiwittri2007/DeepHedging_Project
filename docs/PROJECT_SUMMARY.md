@@ -1,6 +1,6 @@
 # Project Summary — Deep Hedging under Transaction Costs (Simulation → Real Hong Kong Data)
 
-**Author:** Apiwit · **Stack:** Python, NumPy, autograd, pandas, matplotlib · **Tests:** 53 · **Date:** November 2026
+**Author:** Apiwit · **Stack:** Python, NumPy, autograd, pandas, matplotlib · **Tests:** 54 · **Date:** November 2026
 
 ## 1. The question
 Black–Scholes delta hedging is optimal only if you can rebalance continuously and for free. In practice you rebalance daily and pay to trade (in Hong Kong, stamp duty alone is 10 bps per side). **Deep hedging** (Bühler, Gonon, Teichmann & Wood, 2019) trains a neural network to choose hedge positions that directly minimise the tail risk of the hedging P&L, including costs. This project asks two things. Does it beat delta hedging in a controlled simulation? Does that edge survive on real stock paths it was never trained on?
@@ -37,4 +37,4 @@ Survivorship bias (today's index members); single-stock hedging rather than inde
 Heston / rough-volatility training paths; hedging with HSI futures; recurrent policy; dispersion across training seeds; free HKEX index-option implied vols if a source becomes available.
 
 ## 7. CV bullet
-> Built a deep-hedging engine (NumPy + autograd) that minimises CVaR of option-hedging P&L under transaction costs. Trained only on Monte Carlo paths, it cut 95% CVaR by ~4% vs Black–Scholes delta out-of-sample on 2,650 real Hang Seng Tech option windows (2016–2026) at realistic HK costs, significant under a month-clustered bootstrap. Also showed real tail risk is ~2× the GBM prediction, driven by volatility misspecification. 53 tests.
+> Built a deep-hedging engine (NumPy + autograd) that minimises CVaR of option-hedging P&L under transaction costs. Trained only on Monte Carlo paths, it cut 95% CVaR by ~4% vs Black–Scholes delta out-of-sample on 2,650 real Hang Seng Tech option windows (2016–2026) at realistic HK costs, significant under a month-clustered bootstrap. Also showed real tail risk is ~2× the GBM prediction, driven by volatility misspecification. 54 tests.

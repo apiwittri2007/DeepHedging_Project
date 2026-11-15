@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
 
-from deephedge.real import CHARTS, main
+from deephedge.experiments.run_real import main
+from deephedge.plots.real_charts import CHARTS
 
 
 def test_real_cli_quick_writes_charts(tmp_path):
@@ -13,7 +14,9 @@ def test_real_cli_quick_writes_charts(tmp_path):
         p = 40 * np.exp(np.cumsum(rng.normal(0, 0.025, n)))
         d = pd.bdate_range("2012-01-02", periods=n)
         pd.DataFrame({"Date": d.strftime("%Y-%m-%d"), "Close": p}).to_csv(data / f"S{i}.HK.csv", index=False)
-    out = tmp_path / "out"
-    main(["--data", str(data), "--out", str(out), "--quick"])
-    for name in list(CHARTS) + ["real_summary.csv", "real_summary.md"]:
+    out, figs = tmp_path / "out", tmp_path / "figs"
+    main(["--data", str(data), "--out", str(out), "--figures", str(figs), "--quick"])
+    for name in ("real_summary.csv", "real_summary.md"):
         assert (out / name).exists(), name
+    for name in CHARTS:
+        assert (figs / name).exists(), name

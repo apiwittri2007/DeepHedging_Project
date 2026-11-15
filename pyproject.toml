@@ -1,12 +1,20 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "deephedge"
-version = "0.1.0"
-description = "Deep hedging vs delta hedging under transaction costs (Monte Carlo)"
+version = "0.2.0"
+description = "Deep hedging vs delta hedging under transaction costs: Monte Carlo study and real Hong Kong data"
 requires-python = ">=3.10"
 dependencies = ["numpy>=1.24", "scipy>=1.10", "autograd>=1.6", "pandas>=2.0", "matplotlib>=3.7"]
 
-[tool.setuptools]
-packages = ["deephedge"]
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]

@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from deephedge.gbm import bs_call_delta, bs_call_price, simulate_gbm_paths
+from deephedge.sim.gbm import bs_call_delta, bs_call_price, simulate_gbm_paths
 
 
 def test_shape_and_start():

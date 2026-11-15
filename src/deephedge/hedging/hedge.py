@@ -16,8 +16,8 @@ from typing import Callable
 import autograd.numpy as anp
 import numpy as np
 
-from .costs import proportional_cost
-from .gbm import bs_call_delta, bs_call_price, path_sigma
+from deephedge.hedging.costs import proportional_cost
+from deephedge.sim.gbm import bs_call_delta, bs_call_price, path_sigma
 
 Policy = Callable[[anp.ndarray], anp.ndarray]  # features (n_paths, 4) -> holding (n_paths,)
 

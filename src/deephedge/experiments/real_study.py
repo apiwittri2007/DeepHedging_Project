@@ -14,13 +14,13 @@ from __future__ import annotations
 
 import numpy as np
 
-from .delta import feature_banded_policy, feature_delta_policy
-from .gbm import simulate_gbm_paths
-from .hedge import simulate_hedged_pnl
-from .metrics import cvar, paired_bootstrap_cvar_diff, summary
-from .network import make_policy
-from .realdata import TRADING_DAYS, Windows
-from .train import train_deep_hedger
+from deephedge.hedging.delta import feature_banded_policy, feature_delta_policy
+from deephedge.sim.gbm import simulate_gbm_paths
+from deephedge.hedging.hedge import simulate_hedged_pnl
+from deephedge.hedging.metrics import cvar, paired_bootstrap_cvar_diff, summary
+from deephedge.models.network import make_policy
+from deephedge.data.realdata import TRADING_DAYS, Windows
+from deephedge.models.train import train_deep_hedger
 
 PERIODS = {
     "COVID crash": ("2020-02-01", "2020-06-30"),

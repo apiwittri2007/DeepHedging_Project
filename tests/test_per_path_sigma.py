@@ -2,10 +2,10 @@ import autograd.numpy as anp
 import numpy as np
 import pytest
 
-from deephedge.delta import feature_banded_policy, feature_delta_policy
-from deephedge.gbm import bs_call_delta, simulate_gbm_paths
-from deephedge.hedge import simulate_hedged_pnl
-from deephedge.train import train_deep_hedger
+from deephedge.hedging.delta import feature_banded_policy, feature_delta_policy
+from deephedge.sim.gbm import bs_call_delta, simulate_gbm_paths
+from deephedge.hedging.hedge import simulate_hedged_pnl
+from deephedge.models.train import train_deep_hedger
 
 
 def test_gbm_per_path_sigma_dispersion():

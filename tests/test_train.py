@@ -1,10 +1,10 @@
 import numpy as np
 
-from deephedge.gbm import simulate_gbm_paths
-from deephedge.hedge import simulate_hedged_pnl
-from deephedge.metrics import cvar
-from deephedge.network import init_params, make_policy
-from deephedge.train import train_deep_hedger
+from deephedge.sim.gbm import simulate_gbm_paths
+from deephedge.hedging.hedge import simulate_hedged_pnl
+from deephedge.hedging.metrics import cvar
+from deephedge.models.network import init_params, make_policy
+from deephedge.models.train import train_deep_hedger
 
 ARGS = dict(K=100, r=0.0, sigma=0.2, T=1.0)
 

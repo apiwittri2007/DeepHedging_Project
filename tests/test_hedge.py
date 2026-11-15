@@ -2,9 +2,9 @@ import autograd.numpy as anp
 import numpy as np
 from autograd import grad
 
-from deephedge.costs import proportional_cost
-from deephedge.gbm import simulate_gbm_paths
-from deephedge.hedge import simulate_hedged_pnl
+from deephedge.hedging.costs import proportional_cost
+from deephedge.sim.gbm import simulate_gbm_paths
+from deephedge.hedging.hedge import simulate_hedged_pnl
 
 
 def test_proportional_cost():

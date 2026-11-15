@@ -1,40 +1,17 @@
-"""CLI: python -m deephedge --out results/  (trains and writes results + plots)."""
+"""Charts for the simulation study (deep hedging vs delta on GBM paths)."""
 
 from __future__ import annotations
 
-import argparse
 from pathlib import Path
 
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
-
-from .experiment import run_experiment  # noqa: E402
+import numpy as np  # noqa: E402,F401
 
 STYLE = {"deep": ("#2a78d6", "Deep hedger"), "delta": ("#eb6834", "BS delta"),
          "banded_delta": ("#1baf7a", "Delta + band"), "no_hedge": ("#8f8e89", "No hedge")}
-
-
-def write_summary(rows, path: Path) -> None:
-    hdr = "| Cost (bps) | Strategy | Mean | Std | CVaR₉₅ | VaR₉₅ |\n|---:|---|---:|---:|---:|---:|"
-    lines = [hdr]
-    for r in rows:
-        lines.append(
-            f"| {r['cost']*1e4:.0f} | {STYLE[r['strategy']][1]} | {r['mean']:.3f} | "
-            f"{r['std']:.3f} | {r['cvar95']:.3f} | {r['var95']:.3f} |"
-        )
-    path.write_text("\n".join(lines) + "\n")
-
-
-def write_csv(rows, path: Path) -> None:
-    import csv
-
-    with path.open("w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
-        w.writeheader()
-        w.writerows(rows)
 
 
 def plot_cvar_vs_cost(rows, path: Path) -> None:
@@ -96,39 +73,3 @@ def plot_example(example, path: Path) -> None:
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     plt.close(fig)
-
-
-def main(argv: list[str] | None = None) -> dict:
-    p = argparse.ArgumentParser(description="Deep hedging vs delta hedging experiment")
-    p.add_argument("--out", default="results")
-    p.add_argument("--n-steps", type=int, default=20)
-    p.add_argument("--epochs", type=int, default=200)
-    p.add_argument("--n-train", type=int, default=4000)
-    p.add_argument("--n-eval", type=int, default=8000)
-    p.add_argument("--seed", type=int, default=0)
-    p.add_argument("--quick", action="store_true", help="small/fast run for smoke-testing")
-    args = p.parse_args(argv)
-
-    kw = dict(n_steps=args.n_steps, epochs=args.epochs, n_train=args.n_train,
-              n_eval=args.n_eval, seed=args.seed)
-    if args.quick:
-        kw.update(n_steps=8, epochs=20, n_train=800, n_eval=800, cost_grid=(0.0, 0.002))
-
-    result = run_experiment(**kw)
-    rows, extras = result["rows"], result["extras"]
-
-    out = Path(args.out)
-    out.mkdir(parents=True, exist_ok=True)
-    write_csv(rows, out / "summary.csv")
-    write_summary(rows, out / "summary.md")
-    plot_cvar_vs_cost(rows, out / "cvar_vs_cost.png")
-    if extras:
-        plot_pnl_hist(extras["pnl"], extras["focus_cost"], out / "pnl_hist.png")
-        plot_training(extras["history"], out / "training.png")
-        plot_example(extras["example"], out / "example_hedge.png")
-    print((out / "summary.md").read_text())
-    return result
-
-
-if __name__ == "__main__":
-    main()

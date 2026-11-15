@@ -1,11 +1,11 @@
-"""Build data/hk/<ticker>.csv (Date, Close) from a free public source.
+"""Build data/raw/hk/<ticker>.csv (Date, Close) from a free public source.
 
 Source: github.com/zjplab/US-Trading-Data (GPL-3.0), which refreshes daily
 split/dividend-adjusted prices for Hang Seng Tech constituents from Yahoo Finance
 via yfinance. Usage:
 
     git clone --depth 1 https://github.com/zjplab/US-Trading-Data /tmp/src
-    python -I scripts/fetch_hk_data.py --src /tmp/src --out data/hk
+    python -I scripts/fetch_hk_data.py --src /tmp/src --out data/raw/hk
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ def convert(src_csv: Path, out_csv: Path) -> int:
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--src", required=True, help="clone of zjplab/US-Trading-Data")
-    p.add_argument("--out", default="data/hk")
+    p.add_argument("--out", default="data/raw/hk")
     args = p.parse_args()
     src = Path(args.src) / "data" / "HangSengTech"
     out = Path(args.out)
