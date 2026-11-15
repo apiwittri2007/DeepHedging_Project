@@ -51,10 +51,18 @@ def paired_bootstrap_cvar_diff(pnl_a, pnl_b, alpha: float = 0.95, n_boot: int = 
     ``clusters`` (optional, one label per window, e.g. the start month) resamples
     whole clusters instead of single windows, so outcomes that share a common
     shock are not treated as independent — a more conservative interval.
+
+    Either input may be 2-D (seeds x windows): its CVaR is then the mean of the
+    per-seed CVaRs, and resampling draws the same windows for every seed.
     """
     a, b = np.asarray(pnl_a), np.asarray(pnl_b)
+
+    def risk(x, idx=None):
+        x = x if idx is None else x[..., idx]
+        return float(np.mean([cvar(row, alpha) for row in x])) if x.ndim == 2 else cvar(x, alpha)
+
     rng = np.random.default_rng(seed)
-    n = len(a)
+    n = a.shape[-1]
     groups = None
     if clusters is not None:
         _, inv = np.unique(np.asarray(clusters), return_inverse=True)
@@ -65,7 +73,7 @@ def paired_bootstrap_cvar_diff(pnl_a, pnl_b, alpha: float = 0.95, n_boot: int = 
             idx = rng.integers(0, n, n)
         else:
             idx = np.concatenate([groups[g] for g in rng.integers(0, len(groups), len(groups))])
-        diffs[i] = cvar(a[idx], alpha) - cvar(b[idx], alpha)
+        diffs[i] = risk(a, idx) - risk(b, idx)
     lo, hi = np.percentile(diffs, [2.5, 97.5])
-    return {"diff": cvar(a, alpha) - cvar(b, alpha), "ci_low": float(lo), "ci_high": float(hi),
+    return {"diff": risk(a) - risk(b), "ci_low": float(lo), "ci_high": float(hi),
             "p_a_not_better": float((diffs >= 0).mean())}

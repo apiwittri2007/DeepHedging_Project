@@ -31,11 +31,16 @@ def train_deep_hedger(
     batch_size: int = 256,
     lr: float = 0.01,
     seed: int = 0,
+    init: dict | None = None,
 ) -> tuple[dict, list[float]]:
-    """Return trained params ``{"net", "w"}`` and the per-epoch loss history."""
+    """Return trained params ``{"net", "w"}`` and the per-epoch loss history.
+
+    ``init`` (a previous result) starts training from those parameters instead of
+    a fresh initialisation — used to fine-tune a simulation-pretrained hedger.
+    """
     layer_sizes = layer_sizes or [4, 16, 16, 1]
     rng = np.random.default_rng(seed)
-    theta = {"net": init_params(layer_sizes, seed=seed), "w": 0.0}
+    theta = init if init is not None else {"net": init_params(layer_sizes, seed=seed), "w": 0.0}
     flat, unflatten = flatten(theta)
 
     sigma = path_sigma(sigma, paths.shape[0])
