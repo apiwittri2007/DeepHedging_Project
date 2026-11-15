@@ -49,7 +49,9 @@ Returns scaled by the trader's own vol still have excess kurtosis ≈ 7: 0.7% of
 
 ![Sample paths](figures/real/real_sample_paths.png)
 
-### 2. The cost advantage survives out-of-sample
+### 2. The cost advantage survives out-of-sample (single split, one seed — see Part 3)
+
+> **Update (Part 3):** with walk-forward retraining and 3 seeds, the 15 bps advantage shrinks to −0.05 and is no longer significant; it remains significant at 50 bps.
 ![CVaR vs cost, simulated vs real](figures/real/real_cvar_vs_cost.png)
 
 | Cost (bps) | Deep − delta CVaR₉₅ | 95% CI (month-clustered) | Deep better? |
@@ -81,6 +83,50 @@ Full tables: [`results/real/real_summary.md`](results/real/real_summary.md) · s
 
 ---
 
+## Part 3 — Which training data makes a better hedger? (walk-forward, 3 seeds)
+
+Pre-registered design: [`docs/superpowers/specs/2026-11-15-training-data-study-design.md`](docs/superpowers/specs/2026-11-15-training-data-study-design.md).
+Same 2,650 real test windows (2016–2026), but now **walk-forward**: for each test year, every model may only use prices dated before 1 January of that year. 6 training arms × 6 costs × 3 seeds × 11 years = 990 training jobs (~40 min on 2 CPUs).
+
+| Arm | Training data |
+|---|---|
+| A0 | GBM, trader knows the true vol (the Part 2 method) |
+| A1 | GBM, trader *estimates* vol from 63 warm-up days, as on real data |
+| A2 | GARCH(1,1) with Student-t shocks, fitted per stock |
+| A3 | Stationary block bootstrap of each stock's real returns |
+| A4 | Real overlapping windows only |
+| A5 | A1, then fine-tuned on A4 |
+| L | **No neural net:** delta + a + b·δ + c·δ², fitted by least squares on real windows |
+
+![CVaR at 15 bps](figures/training_data/td_cvar_focus.png)
+![Difference vs delta](figures/training_data/td_diff_vs_delta.png)
+
+**Results at 15 bps (primary cost; CVaR difference vs BS delta, month-clustered 95% CI):**
+
+| Arm | vs delta | 95% CI | vs A1 |
+|---|---:|---|---:|
+| A0 GBM, known vol | −0.05 | [−0.20, +0.08] | +0.03 |
+| A1 GBM, est. vol | −0.09 | [−0.26, +0.07] | — |
+| A2 GARCH-t | +2.02 | [+0.31, +3.96] | +2.11 (worse) |
+| A3 Block bootstrap | −0.12 | [−0.34, +0.12] | −0.03 |
+| A4 Real windows | +0.01 | [−0.22, +0.24] | +0.10 |
+| A5 GBM → real | −0.12 | [−0.32, +0.09] | −0.03 |
+| **L Linear (no NN)** | **−0.14** | **[−0.24, −0.05]** | −0.05 |
+
+What this says, plainly:
+1. **Under walk-forward retraining with 3 seeds, no deep arm significantly beats BS delta at 15 bps.** The Part 2 result (−0.25, significant) came from a single split and a single seed; here seed-to-seed spread (sd 0.03–0.11) is as large as the effect. Part 2's 15 bps claim should be read as *not robust*.
+2. **The simple linear correction L is the only method that beats delta significantly at 0–25 bps**, echoing Ruf & Wang (2022): a regression on delta matches or beats the network.
+3. **H3 (gain grows with cost) holds:** at 50 bps A0, A1 and A5 beat delta significantly (−0.27, −0.31, −0.38).
+4. **More realistic training data did not help (H1 not supported).** The block bootstrap is the most realistic generator (below) and among the best arms, but not significantly better than plain GBM. Training on real windows alone (A4) is no better than delta, even in later years with 3× more data.
+5. **GARCH-t training is unstable:** fitted to pre-year data it produces far fatter tails than reality (kurtosis 136 vs 6.7), and some seeds blow up (2022 especially).
+
+![Gap by cost](figures/training_data/td_gap_by_cost.png)
+![Gap by year](figures/training_data/td_gap_by_year.png)
+![Realism](figures/training_data/td_realism.png)
+![Data quantity](figures/training_data/td_data_quantity.png)
+
+Full tables: [`results/training_data/summary.md`](results/training_data/summary.md).
+
 ## Run it
 
 ```bash
@@ -105,18 +151,18 @@ python -m deephedge.experiments.run_real --config configs/real.json
 ```
 DeepHedging_Project/
 ├── src/deephedge/
-│   ├── sim/            gbm.py — GBM paths (scalar or per-path vol), Black–Scholes price/delta
+│   ├── sim/            gbm.py — GBM + Black–Scholes; generators.py — GBM warm-up, GARCH-t, block bootstrap
 │   ├── hedging/        hedge.py (causal, differentiable P&L engine), delta.py, costs.py, metrics.py
-│   ├── models/         network.py (MLP policy), train.py (CVaR training, autograd + Adam)
+│   ├── models/         network.py (MLP), train.py (CVaR training, fine-tuning), linear.py (regression benchmark)
 │   ├── data/           realdata.py — HK prices -> no-look-ahead option windows
-│   ├── experiments/    sim_study.py, real_study.py, run_sim.py, run_real.py (CLIs)
-│   └── plots/          sim_charts.py, real_charts.py
+│   ├── experiments/    sim_study, real_study, training_data_study + run_sim/run_real/run_training_data CLIs
+│   └── plots/          sim_charts.py, real_charts.py, training_data_charts.py
 ├── data/raw/hk/        29 Hang Seng Tech stocks (Date, Close) + licence NOTICE
-├── configs/            sim.json, real.json — settings for each study
+├── configs/            sim.json, real.json, training_data.json — settings for each study
 ├── scripts/            run_all.sh (reproduce everything), fetch_hk_data.py
-├── results/            sim/, real/ — tables
-├── figures/            sim/, real/ — every chart in this README
+├── results/            sim/, real/, training_data/ — tables
+├── figures/            sim/, real/, training_data/ — every chart in this README
 ├── paper/              outline + references for the research paper
 ├── docs/               PROJECT_SUMMARY.md, INTERVIEW.md, design specs and plans
-└── tests/              54 tests
+└── tests/              74 tests
 ```

@@ -30,7 +30,7 @@ from deephedge.models.network import make_policy
 from deephedge.models.train import train_deep_hedger
 from deephedge.sim.gbm import simulate_gbm_paths
 from deephedge.sim.generators import (
-    MIN_GARCH_OBS, N_DAYS, fit_garch_t, gbm_returns, sample_mixture, simulate_garch_t,
+    MIN_GARCH_OBS, N_DAYS, VOL_LOOKBACK, fit_garch_t, gbm_returns, sample_mixture, simulate_garch_t,
     stationary_bootstrap, windows_from_returns,
 )
 
@@ -112,16 +112,36 @@ def _job(args):
 
 
 def _realism(x: np.ndarray) -> dict:
-    """Stylised facts of an (n, days) return array: tails and volatility clustering."""
-    r = x - x.mean()
-    flat = r.ravel()
-    kurt = float((flat**4).mean() / (flat**2).mean() ** 2 - 3.0)
-    a = np.abs(r) - np.abs(r).mean()
+    """Stylised facts of an (n, 84) return array, as the hedger sees them.
+
+    Tails are measured on the 21 hedge-day returns divided by the trader's own
+    63-day trailing vol (so mixing calm and wild stocks does not count as fat
+    tails); clustering is the within-path autocorrelation of |returns|.
+    """
+    trail = x[:, :VOL_LOOKBACK].std(axis=1, ddof=1, keepdims=True)
+    z = (x[:, VOL_LOOKBACK:] / trail).ravel()
+    z = z[np.isfinite(z)]
+    zc = z - z.mean()
+    kurt = float((zc**4).mean() / (zc**2).mean() ** 2 - 3.0)
+    a = np.abs(x) - np.abs(x).mean(axis=1, keepdims=True)
     acf = [float((a[:, :-k] * a[:, k:]).mean() / (a**2).mean()) for k in range(1, 11)]
-    tail = np.sort(np.abs(flat))[::-1]
+    tail = np.sort(np.abs(zc))[::-1]
     k = max(10, int(0.025 * len(tail)))
     hill = float(1.0 / np.mean(np.log(tail[:k] / tail[k])))
     return {"excess_kurtosis": kurt, "acf_abs_1_10": float(np.mean(acf)), "hill_index": hill}
+
+
+def fold_realism(f: dict, sets: dict, n_train: int, mean_block: float, seed: int) -> list[dict]:
+    """Realism rows for one fold: real pre-year data and each available generator."""
+    rows = []
+    real_lr = _real_blocks(f["returns"])
+    if len(real_lr):
+        rows.append({"year": f["year"], "source": "real", **_realism(real_lr)})
+    for a in SYNTHETIC[1:]:                      # A0 has the same returns as A1 (GBM)
+        if sets[a] is not None:
+            rows.append({"year": f["year"], "source": a,
+                         **_realism(_synthetic_lr(f, a, n_train, mean_block, seed))})
+    return rows
 
 
 def _real_blocks(returns: dict) -> np.ndarray:
@@ -166,13 +186,7 @@ def run_training_data_study(
         fold_sizes.append({"year": f["year"], "n_test": len(test), "n_real_train": len(f["real_train"]),
                            "n_stocks_returns": len(f["returns"]),
                            "n_stocks_garch": len(f.get("_garch", {})), "unavailable": unavailable})
-        real_lr = _real_blocks(f["returns"])
-        if len(real_lr):
-            realism.append({"year": f["year"], "source": "real", **_realism(real_lr)})
-        for a in SYNTHETIC[1:]:                  # A0 has the same returns as A1 (GBM)
-            if first[a] is not None:
-                realism.append({"year": f["year"], "source": a,
-                                **_realism(_synthetic_lr(f, a, n_train, mean_block, seeds[0]))})
+        realism += fold_realism(f, first, n_train, mean_block, seeds[0])
         lin = None
         if first["A4_real"] is not None and len(first["A4_real"][0]) >= 10:
             lin = fit_linear_correction(*first["A4_real"], K=K, T=T)
