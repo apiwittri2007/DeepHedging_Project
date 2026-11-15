@@ -28,11 +28,13 @@ class Windows:
     start: np.ndarray          # (n,) datetime64[D] of the first price
     ticker: np.ndarray         # (n,) str
     n_dropped: int = 0
+    end: np.ndarray | None = None  # (n,) datetime64[D] of the last price
 
     def subset(self, mask) -> "Windows":
         mask = np.asarray(mask, dtype=bool)
+        end = None if self.end is None else self.end[mask]
         return Windows(self.paths[mask], self.trailing_vol[mask], self.realised_vol[mask],
-                       self.start[mask], self.ticker[mask], self.n_dropped)
+                       self.start[mask], self.ticker[mask], self.n_dropped, end)
 
     def __len__(self) -> int:
         return len(self.paths)
@@ -53,14 +55,23 @@ def build_windows(
     horizon: int = 21,
     vol_lookback: int = 63,
     max_abs_logret: float = 0.5,
+    step: int | None = None,
+    end_before: str | None = None,
 ) -> Windows:
-    """Non-overlapping option windows per stock, with no-look-ahead trailing vol.
+    """Option windows per stock, with no-look-ahead trailing vol.
+
+    Windows start every ``step`` trading days (default ``horizon``: non-overlapping;
+    1 gives one window per start day, for training). ``end_before`` keeps only
+    windows whose *last* price is dated before that date, so a training set built
+    for a test year never contains any price from that year.
 
     A window is dropped if it (or its trailing-vol history) contains a missing
     price, a daily |log return| above ``max_abs_logret`` (a data error rather
     than a market move), or a stale trailing vol below 1%.
     """
-    paths, tvol, rvol, start, tick = [], [], [], [], []
+    step = horizon if step is None else step
+    cutoff = None if end_before is None else np.datetime64(end_before)
+    paths, tvol, rvol, start, end, tick = [], [], [], [], [], []
     dropped = 0
     ann = np.sqrt(TRADING_DAYS)
     for name, s in closes.items():
@@ -70,6 +81,8 @@ def build_windows(
         lr[1:] = np.log(p[1:] / p[:-1])
         j = vol_lookback
         while j + horizon <= len(p) - 1:
+            if cutoff is not None and dates[j + horizon] >= cutoff:
+                break                                    # dates are sorted: later windows end later
             win = p[j: j + horizon + 1]
             trail = lr[j - vol_lookback + 1: j + 1]      # returns ending on/before p[j]
             inside = lr[j + 1: j + horizon + 1]          # the window's own returns
@@ -88,8 +101,9 @@ def build_windows(
                 tvol.append(tv)
                 rvol.append(inside.std(ddof=1) * ann)
                 start.append(dates[j])
+                end.append(dates[j + horizon])
                 tick.append(name)
-            j += horizon
+            j += step
     n = horizon + 1
     return Windows(
         paths=np.array(paths).reshape(-1, n),
@@ -98,4 +112,26 @@ def build_windows(
         start=np.array(start, dtype="datetime64[D]"),
         ticker=np.array(tick, dtype=str),
         n_dropped=dropped,
+        end=np.array(end, dtype="datetime64[D]"),
     )
+
+
+def returns_before(closes: dict[str, pd.Series], date: str, max_abs_logret: float = 0.5) -> dict[str, np.ndarray]:
+    """Clean daily log returns per stock using only prices dated before ``date``.
+
+    Returns with a missing price at either end, or |log return| above
+    ``max_abs_logret`` (data errors), are dropped. Stocks with no returns are omitted.
+    """
+    cutoff = np.datetime64(date)
+    out = {}
+    for name, s in closes.items():
+        dates = s.index.to_numpy().astype("datetime64[D]")
+        p = s.to_numpy(dtype=float)[dates < cutoff]
+        if len(p) < 2:
+            continue
+        with np.errstate(invalid="ignore", divide="ignore"):
+            lr = np.log(p[1:] / p[:-1])
+        lr = lr[np.isfinite(lr) & (np.abs(lr) <= max_abs_logret)]
+        if len(lr):
+            out[name] = lr
+    return out
