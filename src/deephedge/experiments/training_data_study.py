@@ -39,7 +39,8 @@ ARMS = ("A0_gbm_true_vol", "A1_gbm", "A2_garch_t", "A3_bootstrap", "A4_real", "A
 # (finite shock kurtosis), motivated only by the pre-year realism check.
 SENSITIVITY = ("A2b_garch_nu4",)
 ALL_ARMS = ARMS + SENSITIVITY
-BENCHMARKS = ("delta", "banded_delta", "no_hedge", "L_linear")
+BENCHMARKS = ("delta", "banded_delta", "no_hedge", "L_linear", "HW_mv_delta")
+LINEAR = ("L_linear", "HW_mv_delta")
 K, T, HORIZON = 100.0, 21 / TRADING_DAYS, 21
 SYNTHETIC = ("A0_gbm_true_vol", "A1_gbm", "A2_garch_t", "A3_bootstrap", "A2b_garch_nu4")
 
@@ -195,14 +196,15 @@ def run_training_data_study(
                            "n_stocks_returns": len(f["returns"]),
                            "n_stocks_garch": len(f.get("_garch", {})), "unavailable": unavailable})
         realism += fold_realism(f, first, n_train, mean_block, seeds[0])
-        lin = None
+        lin = {}
         if first["A4_real"] is not None and len(first["A4_real"][0]) >= 10:
-            lin = fit_linear_correction(*first["A4_real"], K=K, T=T)
+            for name, form in (("L_linear", "L"), ("HW_mv_delta", "HW")):
+                lin[name] = (fit_linear_correction(*first["A4_real"], K=K, T=T, form=form), form)
         for cost in cost_grid:
             pols = {"delta": feature_delta_policy(), "banded_delta": feature_banded_policy(band),
                     "no_hedge": _no_hedge}
-            if lin is not None:
-                pols["L_linear"] = linear_policy(lin)
+            for name, (coef, form) in lin.items():
+                pols[name] = linear_policy(coef, form)
             for name, pol in pols.items():
                 pnl = np.asarray(simulate_hedged_pnl(test.paths, pol, K, 0.0, test.trailing_vol, T, cost))
                 bench.setdefault((name, cost), {})[fi] = pnl
@@ -291,7 +293,7 @@ def _assemble(folds, cost_grid, focus_cost, seeds, deep, bench, fold_sizes, real
         summary.append({"arm": arm, "cost": cost, "cvar_mean": float(cv.mean()),
                         "cvar_sd": float(cv.std(ddof=1)) if len(cv) > 1 else 0.0,
                         "mean": float(p.mean()), "n": int(m.sum()), "n_seeds": len(cv)})
-        if arm in ALL_ARMS or arm == "L_linear":
+        if arm in ALL_ARMS or arm in LINEAR:
             for vs in ("delta", "A1_gbm"):
                 if vs == arm or (vs, cost) not in series:
                     continue
@@ -310,6 +312,11 @@ def _assemble(folds, cost_grid, focus_cost, seeds, deep, bench, fold_sizes, real
                 by_year.append({"arm": arm, "year": int(y),
                                 "cvar_mean": float(np.mean([cvar(row[sel]) for row in p]))})
 
+    from deephedge.sim.gbm import bs_call_price
+    premium = np.concatenate([bs_call_price(np.full(len(f["test"]), 100.0), K, 0.0, f["test"].trailing_vol, T)
+                              for f in folds])
+    raw = {f"{arm}|{cost}": {"pnl": p.astype(np.float32), "mask": m} for (arm, cost), (p, m) in series.items()}
     return {"summary": summary, "significance": significance, "by_year": by_year,
             "realism": realism, "fold_sizes": fold_sizes, "n_test": int(offsets[-1]),
-            "focus_cost": focus_cost}
+            "focus_cost": focus_cost, "raw": raw, "months": months.astype(str), "test_years": years_arr,
+            "premium": premium}

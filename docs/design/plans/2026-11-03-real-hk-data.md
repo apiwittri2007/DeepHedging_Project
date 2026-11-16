@@ -8,7 +8,7 @@
 
 **Tech Stack:** NumPy, autograd, pandas (data only), matplotlib, pytest.
 
-**Spec:** `docs/superpowers/specs/2026-11-03-real-hk-data-design.md`
+**Spec:** `docs/design/specs/2026-11-03-real-hk-data-design.md`
 
 ## Global Constraints
 

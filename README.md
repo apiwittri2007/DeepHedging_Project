@@ -1,15 +1,23 @@
-# Deep Hedging vs Delta Hedging under Transaction Costs — Simulation and Real Hong Kong Data
+# Does Deep Hedging Survive an Honest Evaluation? — Real Hong Kong Stocks, Transaction Costs, Walk-Forward Tests
 
 [![CI](https://github.com/apiwittri2007/DeepHedging_Project/actions/workflows/ci.yml/badge.svg)](https://github.com/apiwittri2007/DeepHedging_Project/actions/workflows/ci.yml)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/apiwittri2007/DeepHedging_Project/blob/main/notebooks/quickstart.ipynb)
+[![Paper draft](https://img.shields.io/badge/paper-draft%20PDF-blue)](paper/main.pdf)
+[![License: MIT](https://img.shields.io/badge/code-MIT-green)](LICENSE)
 
-**Can a neural network hedge an option better than Black–Scholes delta hedging once trading costs are real — and does that survive real market data?**
+**Can a neural network hedge an option better than Black–Scholes delta once trading costs are real — and which training data makes it better?**
 
-1. **Simulation (Monte Carlo):** train a deep hedger to minimise the tail risk (CVaR₉₅) of a short call's hedging P&L under proportional costs, on GBM paths where Black–Scholes delta is the provably optimal zero-cost hedge.
-2. **Real Hong Kong data:** take the hedger trained *only on simulation* and run it out-of-sample on **2,650 real one-month windows from 29 Hang Seng Tech stocks (2016–2026)**, against delta hedging, with month-clustered bootstrap significance tests.
+> **Headline (walk-forward 2016–2026, 2,650 real one-month option windows on 29 Hang Seng Tech stocks, 10 seeds, month-clustered bootstrap, Romano–Wolf correction over 60 tests):**
+> - At a **realistic HK cost of 15 bps**, a **3-parameter linear correction to delta** is the only method that reliably beats delta: CVaR₉₅ −0.14 [−0.23, −0.04], adjusted p = 0.03 — about **HK$1,400 less tail loss per HK$1m notional** (2.3% of the premium). The best deep hedgers reach the same point estimate but are **not significant** after correction.
+> - At **50 bps**, deep hedgers pay off: −0.31 to −0.37 (5–6% of the premium), about twice the linear correction.
+> - A deep-hedger gain that looked significant on **one split with one seed** (−0.25, Part 2) does **not** hold up under yearly retraining and multiple seeds. **More realistic training data** (GARCH, block bootstrap, real windows) **does not help.**
+> - In one line: *the evaluation protocol and the cost level matter more than the training data.*
 
-Every number and chart here is produced by the code in this repo (`scripts/run_all.sh` regenerates all of it in about a minute). NumPy + [`autograd`](https://github.com/HIPS/autograd), no deep-learning framework; 54 tests.
+![Which training data beats delta](figures/training_data/td_diff_vs_delta.png)
 
-> **One-paragraph summary.** In simulation the deep hedger only matches delta at zero cost — it can't beat the optimal hedge — but pulls ahead as costs rise, by learning to trade less. On real HK tech stocks, tail risk is about **twice** what the GBM simulation predicts (returns have excess kurtosis ≈ 7, and hedging P&L is mostly a bet on realised vs assumed volatility, correlation 0.85). Even so, the cost advantage **survives out-of-sample**: at a realistic HK stock-trading cost of 15 bps per side, the deep hedger's CVaR₉₅ is **6.10 vs 6.35** for delta (−4%, 95% CI [−0.35, −0.14], month-clustered bootstrap), and the gap widens with cost. At 0–5 bps delta is still better — as theory says it should be.
+Everything here is produced by code in this repo. NumPy + [`autograd`](https://github.com/HIPS/autograd), no deep-learning framework; 83 tests; pinned environment in `requirements-lock.txt`. Quick look without training: the [Colab notebook](notebooks/quickstart.ipynb) (~10 s). Full replication: `scripts/run_all.sh` (~3.5 h on 2 CPUs; see [Replication](#run-it)).
+
+The project has three parts: a GBM simulation (Part 1), a single-split pilot on real data (Part 2, superseded) and the main walk-forward study (Part 3). A paper draft is in [`paper/main.pdf`](paper/main.pdf).
 
 ---
 
@@ -30,7 +38,7 @@ Every number and chart here is produced by the code in this repo (`scripts/run_a
 
 ---
 
-## Part 2 — Real Hong Kong data (out-of-sample)
+## Part 2 — Pilot on real Hong Kong data (single split, one seed — superseded by Part 3)
 
 ### Data — free, real, reproducible
 Daily split/dividend-adjusted closing prices of **29 Hang Seng Tech constituents** (Tencent `0700`, Alibaba `9988`, Meituan `3690`, Xiaomi `1810`, SMIC `0981`, Lenovo `0992`, …), 2000 → 2026-11-03, from Yahoo Finance via [`zjplab/US-Trading-Data`](https://github.com/zjplab/US-Trading-Data) (GPL-3.0, refreshed daily). Stored in [`data/raw/hk/`](data/raw/hk) with a [NOTICE](data/raw/hk/NOTICE.md); regenerate with `scripts/fetch_hk_data.py`.
@@ -49,9 +57,9 @@ Returns scaled by the trader's own vol still have excess kurtosis ≈ 7: 0.7% of
 
 ![Sample paths](figures/real/real_sample_paths.png)
 
-### 2. The cost advantage survives out-of-sample (single split, one seed — see Part 3)
+### 2. Pilot result: deep vs delta on one split (not robust — see Part 3)
 
-> **Update (Part 3):** with walk-forward retraining and 3 seeds, the 15 bps advantage shrinks to −0.05 and is no longer significant; it remains significant at 50 bps.
+> **Superseded.** This pilot trained one hedger once (one seed) on pre-2016 data. Under walk-forward retraining with 10 seeds and a multiple-testing correction, the 15 bps gain below is **not significant** (Part 3). It is kept to show how much the protocol matters.
 ![CVaR vs cost, simulated vs real](figures/real/real_cvar_vs_cost.png)
 
 | Cost (bps) | Deep − delta CVaR₉₅ | 95% CI (month-clustered) | Deep better? |
@@ -83,71 +91,77 @@ Full tables: [`results/real/real_summary.md`](results/real/real_summary.md) · s
 
 ---
 
-## Part 3 — Which training data makes a better hedger? (walk-forward, 3 seeds)
+## Part 3 — Which training data makes a better hedger? (walk-forward, 10 seeds, multiple-testing corrected)
 
-Pre-registered design: [`docs/superpowers/specs/2026-11-15-training-data-study-design.md`](docs/superpowers/specs/2026-11-15-training-data-study-design.md).
-Same 2,650 real test windows (2016–2026), but now **walk-forward**: for each test year, every model may only use prices dated before 1 January of that year. 6 training arms × 6 costs × 3 seeds × 11 years = 990 training jobs (~40 min on 2 CPUs), plus one sensitivity arm.
+Pre-registered design: [`docs/design/specs/2026-11-15-training-data-study-design.md`](docs/design/specs/2026-11-15-training-data-study-design.md); robustness additions: [`2026-11-17-plan-b-robustness-design.md`](docs/design/specs/2026-11-17-plan-b-robustness-design.md).
+Same 2,650 real test windows (2016–2026), now **walk-forward**: for each test year, every model may only use prices dated before 1 January of that year. 7 training arms × 6 costs × 10 seeds × 11 years = 3,960 training jobs (~3 h on 2 CPUs). Seeds 0–2 reproduce the earlier 3-seed run exactly.
 
-| Arm | Training data |
+| Arm | Training data / rule |
 |---|---|
 | A0 | GBM, trader knows the true vol (the Part 2 method) |
 | A1 | GBM, trader *estimates* vol from 63 warm-up days, as on real data |
 | A2 | GARCH(1,1) with Student-t shocks, fitted per stock |
-| A2b | *Sensitivity, added after the main run:* A2 with Student-t ν ≥ 4 (finite tail kurtosis) |
+| A2b | *Post hoc sensitivity:* A2 with Student-t ν ≥ 4 (finite tail kurtosis) |
 | A3 | Stationary block bootstrap of each stock's real returns |
 | A4 | Real overlapping windows only |
 | A5 | A1, then fine-tuned on A4 |
-| L | **No neural net:** delta + a + b·δ + c·δ², fitted by least squares on real windows |
+| L | **No neural net:** δ + a + b·δ + c·δ², least squares on real pre-year windows |
+| HW | **No neural net:** Hull & White (2017) minimum-variance form δ + n(d₁)(a + b·δ + c·δ²), fitted the same way |
 
 ![CVaR at 15 bps](figures/training_data/td_cvar_focus.png)
-![Difference vs delta](figures/training_data/td_diff_vs_delta.png)
 
-**Results at 15 bps (primary cost; CVaR difference vs BS delta, month-clustered 95% CI):**
+**CVaR difference vs BS delta** (negative = less tail risk; month-clustered 95% CI; p(RW) = Romano–Wolf step-down adjusted over all 60 arm × cost tests):
 
-| Arm | vs delta | 95% CI | vs A1 |
-|---|---:|---|---:|
-| A0 GBM, known vol | −0.05 | [−0.20, +0.08] | +0.03 |
-| A1 GBM, est. vol | −0.09 | [−0.26, +0.07] | — |
-| A2 GARCH-t | +2.02 | [+0.31, +3.96] | +2.11 (worse) |
-| A2b GARCH-t, ν ≥ 4* | −0.01 | [−0.26, +0.24] | +0.08 |
-| A3 Block bootstrap | −0.12 | [−0.34, +0.12] | −0.03 |
-| A4 Real windows | +0.01 | [−0.22, +0.24] | +0.10 |
-| A5 GBM → real | −0.12 | [−0.32, +0.09] | −0.03 |
-| **L Linear (no NN)** | **−0.14** | **[−0.24, −0.05]** | −0.05 |
+| Arm | 15 bps | 95% CI | p(RW) | 50 bps | 95% CI | p(RW) |
+|---|---:|---|---:|---:|---|---:|
+| A0 GBM, known vol | −0.14 | [−0.26, −0.01] | 0.14 | **−0.31** | [−0.51, −0.09] | **0.03** |
+| A1 GBM, est. vol | −0.11 | [−0.24, +0.03] | 0.37 | −0.30 | [−0.52, −0.07] | 0.06 |
+| A2 GARCH-t | +1.16 | [+0.51, +1.76] | 1.00 | +3.12 | [+2.41, +4.23] | 1.00 |
+| A2b GARCH-t, ν ≥ 4* | +0.10 | [−0.14, +0.33] | 1.00 | −0.06 | [−0.47, +0.34] | 0.93 |
+| A3 Block bootstrap | −0.08 | [−0.41, +0.23] | 0.89 | −0.24 | [−0.74, +0.24] | 0.73 |
+| A4 Real windows | −0.07 | [−0.28, +0.12] | 0.84 | −0.25 | [−0.64, +0.14] | 0.58 |
+| A5 GBM → real | −0.14 | [−0.32, +0.03] | 0.41 | −0.37 | [−0.67, −0.07] | 0.09 |
+| **L Linear (no NN)** | **−0.14** | **[−0.23, −0.04]** | **0.03** | **−0.18** | [−0.26, −0.08] | **0.004** |
+| HW Min-variance delta | +0.15 | [+0.06, +0.26] | 1.00 | +0.17 | [+0.07, +0.28] | 1.00 |
+
+**Economic size at 15 bps:** L cuts tail loss by about **HK$1,400 per HK$1m notional (2.3% of the average premium of HK$6.05 per HK$100)** and raises mean P&L by ~HK$240. At 50 bps the best deep arm (A5) cuts ~HK$3,700 (6.1% of premium). Full table: [`results/training_data/economic_size.csv`](results/training_data/economic_size.csv).
 
 What this says, plainly:
-1. **Under walk-forward retraining with 3 seeds, no deep arm significantly beats BS delta at 15 bps.** The Part 2 result (−0.25, significant) came from a single split and a single seed; here seed-to-seed spread (sd 0.03–0.11) is as large as the effect. Part 2's 15 bps claim should be read as *not robust*.
-2. **The simple linear correction L is the only method that beats delta significantly at 0–25 bps**, echoing Ruf & Wang (2022): a regression on delta matches or beats the network.
-3. **H3 (gain grows with cost) holds:** at 50 bps A0, A1 and A5 beat delta significantly (−0.27, −0.31, −0.38).
-4. **More realistic training data did not help (H1 not supported).** The block bootstrap is the most realistic generator (below) and among the best arms, but not significantly better than plain GBM. Training on real windows alone (A4) is no better than delta, even in later years with 3× more data.
-5. **GARCH-t training is unstable:** fitted to pre-year data it produces far fatter tails than reality (kurtosis 136 vs 6.7), and some seeds blow up (2022 especially). The sensitivity arm A2b (ν ≥ 4, kurtosis 24) trains stably but only ties delta (−0.01), so a better GARCH does not change the conclusion.
+1. **Protocol fragility.** The pilot's significant −0.25 at 15 bps came from one split and one seed. With yearly retraining it is −0.05 using 3 seeds and −0.14 using 10. Seed-to-seed spread (sd 0.05–0.15) is the same size as the effect, and after correcting for 60 tests it is not significant.
+2. **At realistic costs a 3-parameter correction is enough.** L is the only method significant after correction at 10, 15 and 25 bps, and it beats delta in 10 of 11 test years — echoing Ruf & Wang (2022).
+3. **Deep hedging pays when trading is expensive.** At 50 bps deep arms cut tail risk about twice as much as L; A0 survives the correction, A1 and A5 are borderline.
+4. **Realistic training data does not help.** The block bootstrap matches real tails and volatility clustering best (below), yet trains no better a hedger than plain GBM — consistent with Hashimoto et al. (2026). GARCH-t overshoots the tails (kurtosis 136 vs 6.7) and makes training unstable; the post hoc ν ≥ 4 version is stable but still no better than delta.
+5. **Hull–White form hurts here.** Fitted to P&L variance on synthetic option prices it *raises* CVaR — without traded options there is no spot–implied-vol co-movement for it to capture. This is a limitation of synthetic prices, not evidence against Hull–White.
 
-\* A2b was added after seeing the main results. Its only justification is the pre-year realism check, so treat it as a sensitivity check, not a pre-registered arm.
+\* A2b was added after seeing the main results, motivated only by the pre-year realism check.
 
 ![Gap by cost](figures/training_data/td_gap_by_cost.png)
 ![Gap by year](figures/training_data/td_gap_by_year.png)
 ![Realism](figures/training_data/td_realism.png)
 ![Data quantity](figures/training_data/td_data_quantity.png)
 
-Full tables: [`results/training_data/summary.md`](results/training_data/summary.md).
+Full tables: [`results/training_data/summary.md`](results/training_data/summary.md) · per-window P&L for every arm, cost and seed: [`pnl_by_window.csv.gz`](results/training_data/pnl_by_window.csv.gz).
 
 ## Run it
 
 ```bash
-python -m pip install -e ".[dev]"
-bash scripts/run_all.sh          # tests + both studies -> results/ and figures/ (~1 min)
+python -m pip install -r requirements-lock.txt && python -m pip install -e . --no-deps
+bash scripts/run_all.sh          # tests + all three studies -> results/ and figures/ (~3.5 h on 2 CPUs)
+python scripts/make_paper_assets.py && (cd paper && latexmk -pdf main.tex)   # paper tables + PDF
 
 # or one study at a time, settings in configs/
 python -m deephedge.experiments.run_sim  --config configs/sim.json
 python -m deephedge.experiments.run_real --config configs/real.json
+python -m deephedge.experiments.run_training_data --config configs/training_data.json   # Part 3
+python -m deephedge.experiments.run_training_data --from-results                        # redraw tables/charts only
 ```
 
 ## Limitations (read before quoting a number)
 
 - **Survivorship bias:** the stock list is *today's* Hang Seng Tech members; delisted or demoted names are missing.
 - **Single-stock hedging, with dividends inside adjusted prices.** A desk would often hedge with HSI/HSTECH futures, which are cheaper. Dividends are small for HK tech.
-- **Vol model:** the trader uses trailing realised vol, not market implied vol (free historical HK implied vols aren't available).
-- **Statistics:** one training seed per cost; CVaR₉₅ in small periods (COVID, n = 84) is noisy.
+- **Synthetic option prices:** options are priced with the trader's trailing realised vol, not traded quotes (free historical HK option prices aren't available). This is the main limitation; a replication on traded options is the next step.
+- **Statistics:** Part 3 uses 10 seeds and corrects for 60 tests; Part 2 (pilot) used one seed. CVaR₉₅ in small periods (COVID, n = 84) is noisy.
 - **Data quality:** Yahoo Finance via a third-party repo; windows with any |daily log return| > 50% are dropped as errors.
 
 ## Project layout
@@ -157,16 +171,17 @@ DeepHedging_Project/
 ├── src/deephedge/
 │   ├── sim/            gbm.py — GBM + Black–Scholes; generators.py — GBM warm-up, GARCH-t, block bootstrap
 │   ├── hedging/        hedge.py (causal, differentiable P&L engine), delta.py, costs.py, metrics.py
-│   ├── models/         network.py (MLP), train.py (CVaR training, fine-tuning), linear.py (regression benchmark)
+│   ├── models/         network.py (MLP), train.py (CVaR training, fine-tuning), linear.py (L and Hull–White benchmarks)
 │   ├── data/           realdata.py — HK prices -> no-look-ahead option windows
-│   ├── experiments/    sim_study, real_study, training_data_study + run_sim/run_real/run_training_data CLIs
+│   ├── experiments/    sim_study, real_study, training_data_study, inference (Holm, Romano–Wolf) + CLIs
 │   └── plots/          sim_charts.py, real_charts.py, training_data_charts.py
 ├── data/raw/hk/        29 Hang Seng Tech stocks (Date, Close) + licence NOTICE
 ├── configs/            sim.json, real.json, training_data.json — settings for each study
-├── scripts/            run_all.sh (reproduce everything), fetch_hk_data.py
+├── scripts/            run_all.sh (reproduce everything), make_paper_assets.py, fetch_hk_data.py
 ├── results/            sim/, real/, training_data/ — tables
 ├── figures/            sim/, real/, training_data/ — every chart in this README
-├── paper/              outline + references for the research paper
+├── paper/              main.tex + main.pdf (draft), generated tables, references.bib, outline
+├── notebooks/          quickstart.ipynb — headline results in ~10 s (Colab)
 ├── docs/               PROJECT_SUMMARY.md, INTERVIEW.md, design specs and plans
-└── tests/              74 tests
+└── tests/              83 tests
 ```

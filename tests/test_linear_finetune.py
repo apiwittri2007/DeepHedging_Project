@@ -50,3 +50,15 @@ def test_bootstrap_2d_diff_is_mean_of_seed_cvars():
     expected = np.mean([cvar(x) for x in a]) - cvar(b)
     assert np.isclose(res["diff"], expected)
     assert res["ci_low"] < res["diff"] < res["ci_high"]
+
+
+def test_hw_zero_coef_equals_delta_and_fit_reduces_variance():
+    rng = np.random.default_rng(3)
+    p = _paths(3000)
+    sig = rng.uniform(0.2, 0.45, len(p))
+    a = simulate_hedged_pnl(p, linear_policy(np.zeros(3), "HW"), 100, 0.0, sig, T, 0.0)
+    b = simulate_hedged_pnl(p, feature_delta_policy(), 100, 0.0, sig, T, 0.0)
+    assert np.allclose(a, b)
+    coef = fit_linear_correction(p, sig, form="HW")
+    c = simulate_hedged_pnl(p, linear_policy(coef, "HW"), 100, 0.0, sig, T, 0.0)
+    assert np.var(c) <= np.var(b) + 1e-12

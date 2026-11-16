@@ -1,0 +1,33 @@
+\paragraph{Protocol fragility.} The pilot study trained one deep hedger (arm A0) on a single
+pre-2016 split with one seed. It reported a CVaR reduction of $-0.25$ at \FocusBps{} bps, significant
+under the month-clustered bootstrap. Under walk-forward retraining the same arm gives \DiffAZeroFocus{}
+(95\% CI \CIAZeroFocus{}) with \NSeeds{} seeds, and only $-0.05$ with the first three seeds.
+Its seed-to-seed standard deviation is 0.05--0.15 across arms, the same order as the effect.
+After the Romano--Wolf correction over all \NFamily{} comparisons its adjusted $p$-value is \PRWAZeroFocus{}.
+A single split with a single seed therefore overstates both the size and the reliability of the gain.
+
+\paragraph{Realistic costs: a three-parameter correction is enough.} At \FocusBps{} bps the linear
+correction L reduces CVaR by \DiffLFocus{} (CI \CILFocus{}, Romano--Wolf $p=$\PRWLFocus{}). It beats delta
+in 10 of 11 test years and is the only method significant after correction at 10, 15 and 25 bps.
+The best deep arms (A0 and A5) reach the same point estimate, but with wider intervals and no
+significance after correction (Table~2). In money terms L saves about HK\$1{,}400 of tail loss per HK\$1m of
+option notional, 2.3\% of the average premium (Table~3).
+
+\paragraph{High costs: deep hedging pays.} At 50 bps the deep arms trained on GBM
+(\DiffAZeroFifty{} for A0, \DiffAOneFifty{} for A1) and A5 (\DiffAFiveFifty{}) cut tail risk by 0.30--0.37,
+about 5--6\% of the premium, roughly twice as much as L (\DiffLFifty{}). A0 remains significant after the
+Romano--Wolf correction ($p=$\PRWAZeroFifty{}); A1 and A5 are borderline (\PRWAOneFifty{}, \PRWAFiveFifty{}).
+This matches reports that deep-hedging gains grow with transaction costs \citep{francois2025ivs,bracha2025drl}.
+
+\paragraph{Training data: realism does not help.} The block bootstrap reproduces the real data's tails
+and volatility clustering closely (excess kurtosis 7.7 vs 6.7; Hill index 3.4 vs 3.5), while GBM has
+none. Yet training on it (A3: \DiffAThreeFocus{}) or on real windows (A4: \DiffAFourFocus{}) is no better
+than training on GBM. GARCH-$t$ fitted to pre-year data overshoots the tails (kurtosis 136) and makes
+training unstable; capping the tails (A2b, post hoc) stabilises it but does not beat delta. This agrees
+with \citet{hashimoto2026realism}: fidelity of the generator is not what drives hedging performance.
+
+\paragraph{Hull--White form.} Fitted to the variance of hedging P\&L, the minimum-variance form
+of \citet{hull2017optimal} \emph{increases} CVaR relative to delta at every cost. Its $n(d_1)$ scaling
+puts the correction where the option's gamma is largest. Without traded option prices, there is no
+spot--implied-volatility co-movement for it to capture, so the variance-optimal fit does not carry over
+to the tail. We read this as a limitation of synthetic option prices rather than evidence against Hull--White.

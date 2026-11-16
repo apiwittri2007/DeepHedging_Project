@@ -1,6 +1,6 @@
 # Deep Hedging Implementation Plan (as built)
 
-**Spec:** `docs/superpowers/specs/2026-11-02-deep-hedging-design.md`
+**Spec:** `docs/design/specs/2026-11-02-deep-hedging-design.md`
 Executed inline with TDD; one review pass. Tasks, each ending green:
 
 1. **GBM + Black–Scholes** (`gbm.py`) — seeded path simulation; call price/delta with tau=0 handling.

@@ -1,0 +1,26 @@
+\begin{tabular}{lrrrr}
+\toprule
+Arm & Cost & $\Delta$CVaR (HK\$ per HK\$1m) & \% of premium & $\Delta$mean P\&L (HK\$ per HK\$1m) \\
+\midrule
+A0 GBM{,} known vol & 15 & $-$1{,}428 & $-$2.4 & $-$67 \\
+A1 GBM{,} estimated vol & 15 & $-$1{,}123 & $-$1.9 & $-$14 \\
+A2 GARCH-$t$ & 15 & +11{,}582 & +19.2 & +46 \\
+A2b GARCH-$t${,} $\nu\ge4$$^\dagger$ & 15 & +1{,}004 & +1.7 & +91 \\
+A3 Block bootstrap & 15 & $-$763 & $-$1.3 & +282 \\
+A4 Real windows & 15 & $-$670 & $-$1.1 & +369 \\
+A5 GBM $\to$ real & 15 & $-$1{,}386 & $-$2.3 & +469 \\
+HW Min.-variance delta & 15 & +1{,}522 & +2.5 & +138 \\
+L Linear correction & 15 & $-$1{,}387 & $-$2.3 & +240 \\
+Delta + band & 15 & +52 & +0.1 & +317 \\
+A0 GBM{,} known vol & 50 & $-$3{,}057 & $-$5.1 & +1{,}066 \\
+A1 GBM{,} estimated vol & 50 & $-$3{,}040 & $-$5.0 & +1{,}264 \\
+A2 GARCH-$t$ & 50 & +31{,}148 & +51.5 & $-$1{,}182 \\
+A2b GARCH-$t${,} $\nu\ge4$$^\dagger$ & 50 & $-$601 & $-$1.0 & +1{,}569 \\
+A3 Block bootstrap & 50 & $-$2{,}399 & $-$4.0 & +1{,}594 \\
+A4 Real windows & 50 & $-$2{,}456 & $-$4.1 & +1{,}649 \\
+A5 GBM $\to$ real & 50 & $-$3{,}668 & $-$6.1 & +1{,}696 \\
+HW Min.-variance delta & 50 & +1{,}671 & +2.8 & $-$64 \\
+L Linear correction & 50 & $-$1{,}793 & $-$3.0 & +254 \\
+Delta + band & 50 & $-$396 & $-$0.7 & +917 \\
+\bottomrule
+\end{tabular}

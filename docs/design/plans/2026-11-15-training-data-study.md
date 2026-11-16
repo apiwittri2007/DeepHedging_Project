@@ -8,7 +8,7 @@
 
 **Tech Stack:** NumPy, SciPy (GARCH MLE), autograd, pandas, matplotlib, concurrent.futures.
 
-**Spec:** `docs/superpowers/specs/2026-11-15-training-data-study-design.md`
+**Spec:** `docs/design/specs/2026-11-15-training-data-study-design.md`
 
 ## Global Constraints
 - Window: 63 warm-up returns + 21 hedge days; T = 21/252; S₀ = K = 100; trailing vol = std(ddof=1) of the 63 returns × √252.

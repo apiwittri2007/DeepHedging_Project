@@ -20,7 +20,7 @@ from deephedge.experiments.training_data_study import run_training_data_study
 NAMES = {
     "A0_gbm_true_vol": "A0 GBM, known vol", "A1_gbm": "A1 GBM, estimated vol",
     "A2_garch_t": "A2 GARCH-t", "A2b_garch_nu4": "A2b GARCH-t, ν ≥ 4 (sensitivity)", "A3_bootstrap": "A3 Block bootstrap", "A4_real": "A4 Real windows",
-    "A5_finetune": "A5 GBM → real fine-tune", "L_linear": "L Linear correction",
+    "A5_finetune": "A5 GBM → real fine-tune", "L_linear": "L Linear correction", "HW_mv_delta": "HW Min-variance delta (Hull–White form)",
     "delta": "BS delta", "banded_delta": "Delta + band", "no_hedge": "No hedge",
 }
 QUICK = dict(years=(2016, 2017), cost_grid=(0.0, 0.0015), seeds=(0,), n_train=400, epochs=5,
@@ -36,9 +36,27 @@ def _csv(rows, path):
         w.writerows(rows)
 
 
+def write_pnl_csv(res, path: Path) -> None:
+    """Per-window hedging P&L (one column per seed) in a portable format, for replication."""
+    import gzip
+    import numpy as np
+    months, years = res["months"], res["test_years"]
+    with gzip.open(path, "wt", newline="") as f:
+        w = csv.writer(f)
+        n_seeds = max(v["pnl"].shape[0] for v in res["raw"].values())
+        w.writerow(["arm", "cost", "window", "test_year", "month"] + [f"pnl_seed{i}" for i in range(n_seeds)])
+        for key, v in sorted(res["raw"].items()):
+            arm, cost = key.split("|")
+            idx = np.flatnonzero(v["mask"])
+            for j, i in enumerate(idx):
+                w.writerow([arm, cost, int(i), int(years[i]), months[i]] + [f"{x:.5f}" for x in v["pnl"][:, j]])
+
+
 def write_tables(res, out: Path) -> str:
     for key in ("summary", "significance", "by_year", "realism", "fold_sizes"):
         _csv(res[key], out / f"{key}.csv")
+    if "raw" in res:
+        write_pnl_csv(res, out / "pnl_by_window.csv.gz")
     fc = res["focus_cost"]
     lines = [f"## CVaR₉₅ of hedging P&L on the real test set (n = {res['n_test']}, mean ± sd over seeds)", "",
              "| Arm | " + " | ".join(f"{c*1e4:.0f} bps" for c in sorted({r['cost'] for r in res['summary']})) + " |",
@@ -71,6 +89,31 @@ def write_tables(res, out: Path) -> str:
     for f in res["fold_sizes"]:
         lines.append(f"| {f['year']} | {f['n_test']} | {f['n_real_train']} | {f['n_stocks_returns']} | "
                      f"{f['n_stocks_garch']} | {', '.join(f['unavailable']) or '—'} |")
+    if "raw" in res:
+        from deephedge.experiments.inference import economic_size, multiple_testing
+        family = [k.split("|")[0] for k in res["raw"]]
+        family = sorted({a for a in family if a not in ("delta", "no_hedge")})   # no-hedge is not a contender
+        mt = res["multiple_testing"] = multiple_testing(res, vs="delta", arms=family)
+        eco = res["economic"] = economic_size(res, vs="delta")
+        _csv(mt, out / "multiple_testing.csv")
+        _csv(eco, out / "economic_size.csv")
+        lines += ["", f"## Multiple testing: every arm × cost vs BS delta as one family (m = {len(mt)})", "",
+                  "Month-clustered bootstrap shared by all tests; one-sided (arm has lower CVaR).", "",
+                  "| Arm | Cost (bps) | Diff | 95% CI | p raw | p Holm | p Romano–Wolf |",
+                  "|---|---:|---:|---|---:|---:|---:|"]
+        for g in mt:
+            star = " **✓**" if g["p_romano_wolf"] < 0.05 else ""
+            lines.append(f"| {NAMES.get(g['arm'], g['arm'])} | {g['cost']*1e4:.0f} | {g['diff']:+.3f} | "
+                         f"[{g['ci_low']:+.3f}, {g['ci_high']:+.3f}] | {g['p_raw']:.3f} | {g['p_holm']:.3f} | "
+                         f"{g['p_romano_wolf']:.3f}{star} |")
+        prem = eco[0]["avg_premium_per_100"] if eco else float("nan")
+        lines += ["", f"## Economic size at {fc*1e4:.0f} and 50 bps (vs BS delta; average premium HK${prem:.2f} per HK$100)", "",
+                  "| Arm | Cost (bps) | CVaR change, HK$ per HK$1m notional | % of premium | Mean P&L change, HK$ per HK$1m |",
+                  "|---|---:|---:|---:|---:|"]
+        for e in eco:
+            if e["cost"] in (fc, 0.005):
+                lines.append(f"| {NAMES.get(e['arm'], e['arm'])} | {e['cost']*1e4:.0f} | {e['cvar_diff_hkd_per_1m']:+,.0f} | "
+                             f"{e['cvar_diff_pct_premium']:+.1f}% | {e['mean_pnl_diff_hkd_per_1m']:+,.0f} |")
     lines.append(f"\nPrimary cost: {fc*1e4:.0f} bps.")
     text = "\n".join(lines) + "\n"
     (out / "summary.md").write_text(text)
@@ -125,6 +168,7 @@ def main(argv=None) -> dict:
             res = merge_results(pickle.loads(old.read_bytes()), res)
         old.write_bytes(pickle.dumps(res))
     print(write_tables(res, out))
+    (out / "results.pkl").write_bytes(pickle.dumps(res))      # now includes the joint-inference tables
     from deephedge.plots.training_data_charts import CHARTS
     for name, fn in CHARTS.items():
         fn(res, figs / name)

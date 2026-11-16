@@ -1,0 +1,133 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,booktabs,graphicx,hyperref,natbib}
+\usepackage[T1]{fontenc}
+\hypersetup{colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue}
+\input{generated/numbers.tex}
+
+\title{Does Deep Hedging Survive an Honest Evaluation?\\
+\large Training Data, Evaluation Protocol and Transaction Costs on Hong Kong Technology Stocks}
+\author{Apiwit Triwatana\thanks{Draft for discussion with a faculty supervisor. Code and data:
+\url{https://github.com/apiwittri2007/DeepHedging_Project}.}}
+\date{Working draft, November 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Deep hedging trains a neural network to hedge a derivative by directly minimising a risk measure
+of hedging P\&L, including trading costs. Most studies train it on simulated paths and evaluate it
+on a single test split. We ask two questions on 29 Hang Seng Tech stocks (2000--2026):
+which training data makes a better deep hedger, and does the answer survive an honest evaluation?
+We compare six training-data sources (GBM with known or estimated volatility, GARCH-$t$, a
+stationary block bootstrap, real windows, and GBM pre-training fine-tuned on real windows) with
+Black--Scholes delta and two three-parameter linear corrections to delta (a Ruf--Wang-type
+regression and the Hull--White minimum-variance form). Every model is retrained each year using
+only past data (walk-forward, 2016--2026, \NTest{} one-month option windows), with \NSeeds{} training
+seeds, month-clustered bootstrap inference and a Romano--Wolf correction over the
+\NFamily{} arm-by-cost comparisons.
+Three findings stand out. First, a gain over delta that is significant in a single train/test split with one
+seed is not robust under walk-forward retraining with several seeds. Second, at realistic Hong Kong
+costs (\FocusBps{} bps per side) the simple linear corrections are as good as or better than every deep hedger.
+Third, deep hedgers only pull ahead when costs are high (50 bps). More realistic training data does not
+help beyond noise. The evaluation protocol matters more than the training data.
+\end{abstract}
+
+\section{Introduction}
+Black--Scholes (BS) delta hedging is optimal only with continuous, costless trading and a correct
+volatility. Deep hedging \citep{buehler2019deep} drops these assumptions: a neural network maps
+market features to hedge positions and is trained to minimise a convex risk measure such as
+CVaR of the terminal hedging P\&L, with transaction costs inside the objective. Since the network
+needs many paths, it is usually trained on a simulator; how good that simulator must be, and whether real
+data should be used instead, is an open question
+\citep{mikkila2023empirical,buehler2022drift,hashimoto2026realism}.
+
+Two strands of evidence motivate this paper. \citet{ruf2022hedging} show that once the evaluation
+is done carefully, a linear regression on delta matches neural hedgers on index options, and
+\citet{ruf2020review} warn that conclusions often depend on the data split and on the volatility estimate.
+Recent preprints find that deep hedgers learn a delta correction resembling the minimum-variance
+delta of \citet{hull2017optimal} that is fragile across regimes \citep{zernikov2026learn}, and that
+their advantage grows with transaction costs \citep{francois2025ivs,bracha2025drl}.
+
+We contribute in three ways.
+(i) \emph{Protocol fragility.} The same deep hedger that beats delta significantly on one split with
+one seed loses that significance under yearly walk-forward retraining with \NSeeds{} seeds; the
+seed-to-seed spread is as large as the effect.
+(ii) \emph{Training-data comparison under one protocol.} Six training-data sources, pre-registered before
+results were seen, are evaluated on the same \NTest{} real test windows; realism of the training data
+(tails, volatility clustering) does not translate into better hedging.
+(iii) \emph{A high-cost emerging market.} Hong Kong single stocks carry stamp duty of 10 bps per side;
+we map where deep hedging pays off (high costs) and where a three-parameter correction is enough
+(realistic costs).
+
+\section{Data}
+Daily adjusted closes for 29 Hang Seng Tech constituents (2000--2026) come from a public GitHub
+mirror of Yahoo Finance data. We study one-month (21 trading days) at-the-money European calls,
+priced and hedged with the 63-day trailing realised volatility known at inception (no look-ahead).
+Windows with a daily log return above 50\% in absolute value are treated as data errors.
+The test set consists of non-overlapping windows starting in 2016--2026 (\NTest{} windows).
+\emph{Limitation:} option prices are synthetic (BS with trailing volatility), not traded quotes;
+Section~\ref{sec:limits} discusses this.
+
+\section{Method}
+\paragraph{Hedging problem.} A trader sells one call (strike $K=100$, spot $S_0=100$, $T=21/252$)
+for its BS price and rebalances the underlying daily, paying a proportional cost $c$ per unit traded.
+P\&L is the self-financing portfolio value minus the payoff. We report CVaR$_{95}$ of P\&L
+(average loss in the worst 5\% of windows) in HK\$ per HK\$100 of underlying.
+
+\paragraph{Deep hedger.} A 4--32--32--1 MLP maps (time to maturity, log-moneyness, current holding,
+BS delta) to the new holding, and is trained to minimise CVaR$_{95}$ in the Rockafellar--Uryasev form
+\citep{rockafellar2000optimization}, differentiating through the whole path.
+
+\paragraph{Training-data arms.} For each test year $Y$ every arm uses only prices dated before
+1 January $Y$; real training windows must also end before $Y$.
+A0: GBM with the trader knowing the true volatility; A1: GBM where the trader estimates volatility
+from a 63-day warm-up, exactly as on real data; A2: GARCH(1,1)-$t$ fitted per stock (A2b, added after
+the main run and labelled post hoc: Student-$t$ degrees of freedom $\nu\ge 4$); A3: stationary block
+bootstrap of real returns \citep{politis1994stationary}; A4: real overlapping windows; A5: A1 fine-tuned on A4.
+
+\paragraph{Benchmarks.} BS delta; delta with a no-trade band; no hedge; L, the linear correction
+$h=\delta+a+b\delta+c\delta^2$; and HW, the \citet{hull2017optimal} minimum-variance form
+$h=\delta+n(d_1)(a+b\delta+c\delta^2)$. Without traded option prices, L and HW coefficients are
+fitted by least squares to the variance of zero-cost hedging P\&L on the same pre-$Y$ real windows.
+
+\paragraph{Inference.} CVaR is averaged over \NSeeds{} seeds. Differences with delta are tested with a
+paired bootstrap that resamples whole calendar months (2{,}000 draws), so stocks hit by the same
+shock are not counted as independent. All \NFamily{} arm-by-cost comparisons form one family:
+we report Holm \citep{holm1979simple} and studentised Romano--Wolf step-down \citep{romano2005stepwise}
+adjusted $p$-values from a single shared bootstrap \citep[see also][]{harvey2016and}.
+
+\section{Results}
+\begin{table}[h]\centering\small
+\caption{CVaR$_{95}$ of hedging P\&L on the real test set (mean over \NSeeds{} seeds; lower is better).}
+\input{generated/table_cvar.tex}
+\end{table}
+
+\begin{table}[h]\centering\small
+\caption{CVaR difference vs BS delta at \FocusBps{} and 50 bps. Month-clustered 95\% CI; one-sided $p$-values,
+raw and adjusted over all \NFamily{} comparisons. $^\dagger$post hoc.}
+\input{generated/table_tests.tex}
+\end{table}
+
+\begin{table}[h]\centering\small
+\caption{Economic size vs BS delta (average premium HK\$\AvgPremium{} per HK\$100).}
+\resizebox{\textwidth}{!}{\input{generated/table_economic.tex}}
+\end{table}
+
+% Results prose: paper/sections/results.tex (numbers come from generated/numbers.tex)
+\input{sections/results.tex}
+
+\section{Limitations and next steps}\label{sec:limits}
+Option prices are synthetic, so the spot--implied-volatility co-movement that drives the empirical
+minimum-variance correction \citep{hull2017optimal,zernikov2026learn} is absent; a replication on
+traded options (Deribit BTC options, and HKEX stock options if access is obtained) is in progress.
+Constituents are today's index members (survivorship bias). We hedge single stocks with the stock
+itself; index futures would be cheaper. Hyper-parameters were fixed before the walk-forward results
+were seen and not tuned.
+
+\section{Conclusion}
+\input{sections/conclusion.tex}
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+\end{document}

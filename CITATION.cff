@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use this code or its results, please cite it as below."
+title: "Deep hedging on real Hong Kong stocks: training data, evaluation protocol and transaction costs"
+authors:
+  - given-names: Apiwit
+    family-names: Triwatana
+version: 0.3.0
+date-released: 2026-11-17
+license: MIT
+repository-code: "https://github.com/apiwittri2007/DeepHedging_Project"
+keywords: [deep hedging, transaction costs, CVaR, walk-forward, Hong Kong, option hedging]

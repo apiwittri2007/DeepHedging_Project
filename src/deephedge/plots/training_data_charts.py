@@ -21,7 +21,7 @@ DEEP = ("A0_gbm_true_vol", "A1_gbm", "A2_garch_t", "A2b_garch_nu4", "A3_bootstra
 SHORT = {
     "A0_gbm_true_vol": "A0 GBM, known vol", "A1_gbm": "A1 GBM, est. vol", "A2_garch_t": "A2 GARCH-t",
     "A2b_garch_nu4": "A2b GARCH-t ν≥4*", "A3_bootstrap": "A3 Block bootstrap", "A4_real": "A4 Real windows", "A5_finetune": "A5 GBM→real",
-    "L_linear": "L Linear (no NN)", "delta": "BS delta", "banded_delta": "Delta + band", "no_hedge": "No hedge",
+    "L_linear": "L Linear (no NN)", "HW_mv_delta": "HW Min-variance delta", "delta": "BS delta", "banded_delta": "Delta + band", "no_hedge": "No hedge",
     "real": "Real data",
 }
 TICK = {"real": "Real", "A1_gbm": "A1 GBM", "A2_garch_t": "A2 GARCH", "A2b_garch_nu4": "A2b ν≥4", "A3_bootstrap": "A3 Boot."}
@@ -40,7 +40,7 @@ def _unstable(res):
 def _arms(res, with_linear=True):
     present = {r["arm"] for r in res["summary"]}
     arms = [a for a in DEEP if a in present]
-    return arms + (["L_linear"] if with_linear and "L_linear" in present else [])
+    return arms + ([a for a in ("L_linear", "HW_mv_delta") if a in present] if with_linear else [])
 
 
 def chart_cvar_focus(res, path):
@@ -51,9 +51,9 @@ def chart_cvar_focus(res, path):
     rows.sort(key=lambda r: r["cvar_mean"], reverse=True)
     fig, ax = _fig(9, 0.5 * len(rows) + 1.6)
     _axes(ax, f"Tail risk on real HK test windows at {fc*1e4:.0f} bps",
-          f"CVaR₉₅ of hedging P&L (lower is better), n = {res['n_test']}; dot = mean of 3 seeds, line = ±1 sd")
+          f"CVaR₉₅ of hedging P&L (lower is better), n = {res['n_test']}; dot = mean of {max(r['n_seeds'] for r in rows)} seeds, line = ±1 sd")
     y = np.arange(len(rows))
-    colors = [ORANGE if r["arm"] == "delta" else NEUTRAL if r["arm"] in ("banded_delta", "L_linear") else BLUE
+    colors = [ORANGE if r["arm"] == "delta" else NEUTRAL if r["arm"] in ("banded_delta", "L_linear", "HW_mv_delta") else BLUE
               for r in rows]
     bad = _unstable(res)
     lo = min(r["cvar_mean"] for r in rows)
@@ -81,14 +81,16 @@ def chart_diff_vs_delta(res, path):
     rows = [_row(res, "significance", arm=a, cost=fc, vs="delta") for a in _arms(res)]
     rows = [r for r in rows if r is not None][::-1]
     fig, ax = _fig(9, 0.5 * len(rows) + 1.6)
+    m = len(res.get("multiple_testing") or [])
+    note = (f"blue = significant after Romano–Wolf ({m} tests)" if m else "blue = CI below 0")
     _axes(ax, f"Which training data beats BS delta? ({fc*1e4:.0f} bps)",
-          "CVaR(arm) − CVaR(delta) with month-clustered 95% bootstrap CI; left of 0 = less tail risk")
+          "ΔCVaR vs delta, month-clustered 95% CI; left of 0 = less tail risk; " + note)
     y = np.arange(len(rows))
     ax.axvline(0, color=INK2, linewidth=1)
     bad = _unstable(res)
     ok = [r for r in rows if r["arm"] not in bad]
     left, right = min(r["ci_low"] for r in ok), max(r["ci_high"] for r in ok)
-    pad = 0.35 * (right - left)
+    pad = 0.6 * (right - left)
     ax.set_xlim(left - 0.1 * (right - left), right + pad)
     for yi, r in zip(y, rows):
         if r["arm"] in bad:
@@ -96,17 +98,17 @@ def chart_diff_vs_delta(res, path):
                         (right + pad, yi), xytext=(-4, 0), textcoords="offset points",
                         ha="right", va="center", fontsize=8, color=INK2)
             continue
-        sig = r["ci_high"] < 0
+        g = _row(res, "multiple_testing", arm=r["arm"], cost=fc) if res.get("multiple_testing") else None
+        sig = (g["p_romano_wolf"] < 0.05) if g else r["ci_high"] < 0
         c = BLUE if sig else NEUTRAL
         ax.plot([r["ci_low"], r["ci_high"]], [yi, yi], color=c, linewidth=2, solid_capstyle="round")
         ax.plot(r["diff"], yi, "o", ms=8, color=c, markeredgecolor=SURFACE, markeredgewidth=2)
-        ax.annotate(f"{r['diff']:+.3f}", (r["ci_high"], yi), xytext=(8, 0), textcoords="offset points",
-                    va="center", fontsize=8, color=INK)
+        label = f"{r['diff']:+.3f}" + (f"   p(RW) {g['p_romano_wolf']:.3f}" if g else "")
+        ax.annotate(label, (right + pad, yi), xytext=(-4, 0), textcoords="offset points",
+                    ha="right", va="center", fontsize=8, color=INK)
     ax.set_yticks(y, [SHORT[r["arm"]] for r in rows])
     ax.set_xlabel("CVaR difference vs BS delta")
     ax.grid(axis="y", visible=False)
-    ax.text(1, -0.12 - 0.02 * (8 - len(rows)), "blue = CI entirely below 0", transform=ax.transAxes,
-            ha="right", fontsize=8, color=INK2)
     _save(fig, path)
 
 
