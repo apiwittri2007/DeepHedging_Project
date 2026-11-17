@@ -8,15 +8,20 @@ A single split with a single seed therefore overstates both the size and the rel
 
 \paragraph{Realistic costs: a three-parameter correction is enough.} At \FocusBps{} bps the linear
 correction L reduces CVaR by \DiffLFocus{} (CI \CILFocus{}, Romano--Wolf $p=$\PRWLFocus{}). It beats delta
-in 10 of 11 test years and is the only method significant after correction at 10, 15 and 25 bps.
+in 10 of 11 test years and is the only method significant after correction at 10, 15 and 25 bps with the
+pre-registered monthly clusters. This result is borderline rather than firm: with 2-month clusters
+$p=$\PRWLFocusTwoM{}, with quarterly clusters $p=$\PRWLFocusQ{} (Table~4); at 25 and 50 bps L stays
+significant under all three cluster choices, and no comparison survives the more conservative Holm
+correction at the 5\% level.
 The best deep arms (A0 and A5) reach the same point estimate, but with wider intervals and no
 significance after correction (Table~2). In money terms L saves about HK\$1{,}400 of tail loss per HK\$1m of
 option notional, 2.3\% of the average premium (Table~3).
 
 \paragraph{High costs: deep hedging pays.} At 50 bps the deep arms trained on GBM
 (\DiffAZeroFifty{} for A0, \DiffAOneFifty{} for A1) and A5 (\DiffAFiveFifty{}) cut tail risk by 0.30--0.37,
-about 5--6\% of the premium, roughly twice as much as L (\DiffLFifty{}). A0 remains significant after the
-Romano--Wolf correction ($p=$\PRWAZeroFifty{}); A1 and A5 are borderline (\PRWAOneFifty{}, \PRWAFiveFifty{}).
+about 5--6\% of the premium, 1.7--2.0 times as much as L (\DiffLFifty{}). A0 is significant after the
+Romano--Wolf correction with monthly clusters ($p=$\PRWAZeroFifty{}); A1 and A5 are borderline
+(\PRWAOneFifty{}, \PRWAFiveFifty{}), and these conclusions move by a few points of $p$ across cluster choices.
 This matches reports that deep-hedging gains grow with transaction costs \citep{francois2025ivs,bracha2025drl}.
 
 \paragraph{Training data: realism does not help.} The block bootstrap reproduces the real data's tails

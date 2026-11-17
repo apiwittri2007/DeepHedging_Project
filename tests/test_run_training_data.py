@@ -24,3 +24,12 @@ def test_merge_keeps_existing_rows_and_adds_new_arm():
     m = merge_results(base, new)
     assert m["summary"] == [{"arm": "A1_gbm", "v": 1}, {"arm": "A2b_garch_nu4", "v": 3}]
     assert [r["v"] for r in m["realism"]] == [1, 3]
+
+
+def test_merge_carries_raw_pnl_of_new_arms():
+    from deephedge.experiments.run_training_data import merge_results
+    base = {"summary": [], "significance": [], "by_year": [], "realism": [], "raw": {"A1_gbm|0.0": 1}}
+    new = {"summary": [], "significance": [], "by_year": [], "realism": [],
+           "raw": {"A1_gbm|0.0": 2, "A2b_garch_nu4|0.0": 3}}
+    m = merge_results(base, new)
+    assert m["raw"] == {"A1_gbm|0.0": 1, "A2b_garch_nu4|0.0": 3}

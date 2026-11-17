@@ -60,3 +60,30 @@ def test_economic_size_units():
     r = economic_size(_res(1.0))[0]
     assert np.isclose(r["cvar_diff_hkd_per_1m"], r["cvar_diff_per_100"] * 10_000)
     assert np.isclose(r["cvar_diff_pct_premium"], 100 * r["cvar_diff_per_100"] / 4.0)
+
+
+def test_cluster_labels_group_months():
+    from deephedge.experiments.inference import cluster_labels
+    m = np.array(["2020-01", "2020-02", "2020-03", "2020-04", "2020-12", "2021-01"])
+    assert len(set(cluster_labels(m, 1))) == 6
+    q = cluster_labels(m, 3)
+    assert q[0] == q[1] == q[2] and q[3] != q[2] and q[4] != q[5]
+    t = cluster_labels(m, 2)
+    assert t[0] == t[1] and t[2] == t[3] and t[1] != t[2]
+
+
+def test_p_values_never_exactly_zero():
+    row = multiple_testing(_res(5.0), n_boot=200)[0]
+    assert row["p_raw"] > 0 and row["p_romano_wolf"] > 0
+
+
+def test_economic_size_uses_common_windows():
+    res = _res(1.0)
+    res["raw"]["A1|0.0015"]["mask"] = res["raw"]["A1|0.0015"]["mask"].copy()
+    keep = np.ones(1200, bool); keep[:600] = False
+    a = res["raw"]["A1|0.0015"]
+    res["raw"]["A1|0.0015"] = {"pnl": a["pnl"][:, keep], "mask": keep}
+    r = economic_size(res)[0]
+    d = res["raw"]["delta|0.0015"]["pnl"][:, keep]
+    expected = seed_avg_cvar(a["pnl"][:, keep]) - seed_avg_cvar(d)
+    assert np.isclose(r["cvar_diff_per_100"], expected)

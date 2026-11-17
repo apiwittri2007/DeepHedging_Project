@@ -5,7 +5,8 @@ overstate significance. This module draws one set of month-clustered bootstrap
 resamples, shared by every comparison (so their dependence is kept), and reports:
 
 * Holm (1979) step-down adjusted p-values, and
-* Romano & Wolf (2005) step-down adjusted p-values (studentised), which use the
+* Romano & Wolf (2005) step-down adjusted p-values (standardised by each test's
+  bootstrap standard error), which use the
   joint bootstrap distribution and are less conservative than Holm.
 
 It also converts CVaR differences into money: HK$ per HK$1m of option notional,
@@ -19,9 +20,19 @@ import numpy as np
 ALPHA = 0.95
 
 
-def month_counts(months: np.ndarray, n_boot: int, seed: int = 0) -> np.ndarray:
-    """(n_boot, n_windows) integer weights: whole calendar months drawn with replacement."""
-    months = np.asarray(months)
+def cluster_labels(months: np.ndarray, span: int = 1) -> np.ndarray:
+    """Group "YYYY-MM" labels into blocks of ``span`` calendar months (1 = month, 3 = quarter).
+
+    A 21-day window starting late in a month runs into the next, so neighbouring
+    month clusters share shocks; coarser blocks are a robustness check on that.
+    """
+    ym = np.array([int(m[:4]) * 12 + int(m[5:7]) - 1 for m in np.asarray(months, dtype=str)])
+    return ym // span
+
+
+def month_counts(months: np.ndarray, n_boot: int, seed: int = 0, span: int = 1) -> np.ndarray:
+    """(n_boot, n_windows) integer weights: whole clusters of ``span`` months drawn with replacement."""
+    months = cluster_labels(months, span) if span != 1 or np.asarray(months).dtype.kind in "US" else months
     uniq, inv = np.unique(months, return_inverse=True)
     rng = np.random.default_rng(seed)
     draws = rng.integers(0, len(uniq), (n_boot, len(uniq)))
@@ -75,15 +86,20 @@ def romano_wolf(t: np.ndarray, t_star: np.ndarray) -> np.ndarray:
     running = 0.0
     for rank, i in enumerate(order):
         active = order[rank:]
-        p = float(np.mean(t_star[:, active].min(axis=1) <= t[i]))
+        B = len(t_star)
+        p = float((1 + np.sum(t_star[:, active].min(axis=1) <= t[i])) / (B + 1))
         running = max(running, p)
         adj[i] = running
     return adj
 
 
 def multiple_testing(res: dict, vs: str = "delta", arms=None, costs=None,
-                     n_boot: int = 2000, seed: int = 0) -> list[dict]:
-    """Every (arm, cost) vs ``vs``, with raw, Holm and Romano-Wolf p-values (one family)."""
+                     n_boot: int = 2000, seed: int = 0, span: int = 1) -> list[dict]:
+    """Every (arm, cost) vs ``vs``, with raw, Holm and Romano-Wolf p-values (one family).
+
+    ``span`` sets the bootstrap cluster: 1 = calendar month (pre-registered), 2, 3 = quarter.
+    p-values use (1 + #)/(B + 1), so they are never exactly zero.
+    """
     raw = res["raw"]
     pairs = []
     for key in raw:
@@ -94,7 +110,7 @@ def multiple_testing(res: dict, vs: str = "delta", arms=None, costs=None,
             pairs.append((arm, cost))
     if not pairs:
         return []
-    counts = month_counts(res["months"], n_boot, seed)
+    counts = month_counts(res["months"], n_boot, seed, span)
     diffs, stars = [], []
     for arm, cost in pairs:
         a, b = raw[f"{arm}|{cost}"], raw[f"{vs}|{cost}"]
@@ -111,12 +127,13 @@ def multiple_testing(res: dict, vs: str = "delta", arms=None, costs=None,
     se = np.where(se > 0, se, np.inf)
     t = d / se
     t_star = (D - d) / se
-    p_raw = np.mean(t_star <= t, axis=0)
+    p_raw = (1 + np.sum(t_star <= t, axis=0)) / (n_boot + 1)
     p_holm, p_rw = holm(p_raw), romano_wolf(t, t_star)
     rows = []
     for j, (arm, cost) in enumerate(pairs):
         lo, hi = np.percentile(D[:, j] - d[j], [97.5, 2.5])
-        rows.append({"arm": arm, "cost": float(cost), "vs": vs, "diff": float(d[j]), "se": float(se[j]),
+        rows.append({"arm": arm, "cost": float(cost), "vs": vs, "cluster_months": span,
+                     "diff": float(d[j]), "se": float(se[j]),
                      "ci_low": float(d[j] - lo), "ci_high": float(d[j] - hi),
                      "p_raw": float(p_raw[j]), "p_holm": float(p_holm[j]), "p_romano_wolf": float(p_rw[j])})
     return sorted(rows, key=lambda r: (r["cost"], r["arm"]))
@@ -132,8 +149,10 @@ def economic_size(res: dict, vs: str = "delta", notional: float = 1_000_000.0) -
         if arm == vs or f"{vs}|{cost}" not in raw:
             continue
         b = raw[f"{vs}|{cost}"]
-        d_cvar = seed_avg_cvar(a["pnl"]) - seed_avg_cvar(b["pnl"])
-        d_mean = float(a["pnl"].mean() - b["pnl"].mean())
+        common = a["mask"] & b["mask"]                   # compare the same windows only
+        pa, pb = a["pnl"][:, common[a["mask"]]], b["pnl"][:, common[b["mask"]]]
+        d_cvar = seed_avg_cvar(pa) - seed_avg_cvar(pb)
+        d_mean = float(pa.mean() - pb.mean())
         scale = notional / 100.0                        # P&L is per HK$100 of underlying
         rows.append({"arm": arm, "cost": float(cost), "cvar_diff_per_100": d_cvar,
                      "cvar_diff_hkd_per_1m": d_cvar * scale, "cvar_diff_pct_premium": 100 * d_cvar / prem,

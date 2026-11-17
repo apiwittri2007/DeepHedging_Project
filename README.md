@@ -8,14 +8,14 @@
 **Can a neural network hedge an option better than Black–Scholes delta once trading costs are real — and which training data makes it better?**
 
 > **Headline (walk-forward 2016–2026, 2,650 real one-month option windows on 29 Hang Seng Tech stocks, 10 seeds, month-clustered bootstrap, Romano–Wolf correction over 60 tests):**
-> - At a **realistic HK cost of 15 bps**, a **3-parameter linear correction to delta** is the only method that reliably beats delta: CVaR₉₅ −0.14 [−0.23, −0.04], adjusted p = 0.03 — about **HK$1,400 less tail loss per HK$1m notional** (2.3% of the premium). The best deep hedgers reach the same point estimate but are **not significant** after correction.
-> - At **50 bps**, deep hedgers pay off: −0.31 to −0.37 (5–6% of the premium), about twice the linear correction.
+> - At a **realistic HK cost of 15 bps**, a **3-parameter linear correction to delta** is the only method significant after correction: CVaR₉₅ −0.14 [−0.23, −0.04], adjusted p = 0.03 — about **HK$1,400 less tail loss per HK$1m notional** (2.3% of the premium). This is **borderline**: with quarterly instead of monthly bootstrap clusters p = 0.06 (at 25–50 bps it holds under every cluster choice). The best deep hedgers reach the same point estimate but are **not significant**.
+> - At **50 bps**, deep hedgers pay off: −0.30 to −0.37 (5–6% of the premium), 1.7–2× the linear correction.
 > - A deep-hedger gain that looked significant on **one split with one seed** (−0.25, Part 2) does **not** hold up under yearly retraining and multiple seeds. **More realistic training data** (GARCH, block bootstrap, real windows) **does not help.**
 > - In one line: *the evaluation protocol and the cost level matter more than the training data.*
 
 ![Which training data beats delta](figures/training_data/td_diff_vs_delta.png)
 
-Everything here is produced by code in this repo. NumPy + [`autograd`](https://github.com/HIPS/autograd), no deep-learning framework; 83 tests; pinned environment in `requirements-lock.txt`. Quick look without training: the [Colab notebook](notebooks/quickstart.ipynb) (~10 s). Full replication: `scripts/run_all.sh` (~3.5 h on 2 CPUs; see [Replication](#run-it)).
+Everything here is produced by code in this repo. NumPy + [`autograd`](https://github.com/HIPS/autograd), no deep-learning framework; 87 tests; pinned environment in `requirements-lock.txt`. Quick look without training: the [Colab notebook](notebooks/quickstart.ipynb) (~10 s). Full replication: `scripts/run_all.sh` (~3.5 h on 2 CPUs; see [Replication](#run-it)).
 
 The project has three parts: a GBM simulation (Part 1), a single-split pilot on real data (Part 2, superseded) and the main walk-forward study (Part 3). A paper draft is in [`paper/main.pdf`](paper/main.pdf).
 
@@ -94,7 +94,7 @@ Full tables: [`results/real/real_summary.md`](results/real/real_summary.md) · s
 ## Part 3 — Which training data makes a better hedger? (walk-forward, 10 seeds, multiple-testing corrected)
 
 Pre-registered design: [`docs/design/specs/2026-11-15-training-data-study-design.md`](docs/design/specs/2026-11-15-training-data-study-design.md); robustness additions: [`2026-11-17-plan-b-robustness-design.md`](docs/design/specs/2026-11-17-plan-b-robustness-design.md).
-Same 2,650 real test windows (2016–2026), now **walk-forward**: for each test year, every model may only use prices dated before 1 January of that year. 7 training arms × 6 costs × 10 seeds × 11 years = 3,960 training jobs (~3 h on 2 CPUs). Seeds 0–2 reproduce the earlier 3-seed run exactly.
+Same 2,650 real test windows (2016–2026), now **walk-forward**: for each test year, every model may only use prices dated before 1 January of that year. 6 training jobs per year × cost × seed (A5 is fine-tuned inside the A1 job) × 6 costs × 10 seeds × 11 years = 3,960 jobs, 4,620 trained networks (~3.1 h on 2 CPUs). Seeds 0–2 reproduce the earlier 3-seed run exactly.
 
 | Arm | Training data / rule |
 |---|---|
@@ -128,12 +128,22 @@ Same 2,650 real test windows (2016–2026), now **walk-forward**: for each test 
 
 What this says, plainly:
 1. **Protocol fragility.** The pilot's significant −0.25 at 15 bps came from one split and one seed. With yearly retraining it is −0.05 using 3 seeds and −0.14 using 10. Seed-to-seed spread (sd 0.05–0.15) is the same size as the effect, and after correcting for 60 tests it is not significant.
-2. **At realistic costs a 3-parameter correction is enough.** L is the only method significant after correction at 10, 15 and 25 bps, and it beats delta in 10 of 11 test years — echoing Ruf & Wang (2022).
-3. **Deep hedging pays when trading is expensive.** At 50 bps deep arms cut tail risk about twice as much as L; A0 survives the correction, A1 and A5 are borderline.
+2. **At realistic costs a 3-parameter correction is enough.** L is the only method significant after correction at 10, 15 and 25 bps, and it beats delta in 10 of 11 test years — in line with Ruf & Wang (2022), whose linear regression on Black–Scholes sensitivities matched neural networks. At 10–15 bps the significance depends on the bootstrap cluster (month vs quarter, table below); at 25–50 bps it does not.
+3. **Deep hedging pays when trading is expensive.** At 50 bps deep arms cut tail risk 1.7–2× as much as L; A0 is significant after correction, A1 and A5 are borderline.
 4. **Realistic training data does not help.** The block bootstrap matches real tails and volatility clustering best (below), yet trains no better a hedger than plain GBM — consistent with Hashimoto et al. (2026). GARCH-t overshoots the tails (kurtosis 136 vs 6.7) and makes training unstable; the post hoc ν ≥ 4 version is stable but still no better than delta.
 5. **Hull–White form hurts here.** Fitted to P&L variance on synthetic option prices it *raises* CVaR — without traded options there is no spot–implied-vol co-movement for it to capture. This is a limitation of synthetic prices, not evidence against Hull–White.
 
 \* A2b was added after seeing the main results, motivated only by the pre-year realism check.
+
+**Robustness of the corrected p-values to the bootstrap cluster** (a 21-day window can span two months; 1 month is the pre-registered choice; Romano–Wolf p):
+
+| | L 10 bps | L 15 bps | L 25 bps | L 50 bps | A0 50 bps | A1 50 bps |
+|---|---:|---:|---:|---:|---:|---:|
+| 1-month clusters | 0.049 | **0.033** | 0.018 | 0.004 | 0.034 | 0.063 |
+| 2-month clusters | 0.024 | 0.017 | 0.010 | 0.004 | 0.053 | 0.061 |
+| 3-month clusters | 0.091 | 0.064 | 0.042 | 0.017 | 0.042 | 0.049 |
+
+No comparison survives the more conservative Holm correction at 5% (smallest: L at 50 bps, p = 0.06). Inference is conditional on the 10 trained networks.
 
 ![Gap by cost](figures/training_data/td_gap_by_cost.png)
 ![Gap by year](figures/training_data/td_gap_by_year.png)
@@ -161,7 +171,8 @@ python -m deephedge.experiments.run_training_data --from-results                
 - **Survivorship bias:** the stock list is *today's* Hang Seng Tech members; delisted or demoted names are missing.
 - **Single-stock hedging, with dividends inside adjusted prices.** A desk would often hedge with HSI/HSTECH futures, which are cheaper. Dividends are small for HK tech.
 - **Synthetic option prices:** options are priced with the trader's trailing realised vol, not traded quotes (free historical HK option prices aren't available). This is the main limitation; a replication on traded options is the next step.
-- **Statistics:** Part 3 uses 10 seeds and corrects for 60 tests; Part 2 (pilot) used one seed. CVaR₉₅ in small periods (COVID, n = 84) is noisy.
+- **Statistics:** Part 3 uses 10 seeds and corrects for 60 tests; the 15 bps result is borderline across cluster choices, and p-values are conditional on the trained seeds. Part 2 (pilot) used one seed. CVaR₉₅ in small periods (COVID, n = 84) is noisy.
+- **Total-return prices:** prices are dividend-adjusted, so the option is effectively on a total-return series.
 - **Data quality:** Yahoo Finance via a third-party repo; windows with any |daily log return| > 50% are dropped as errors.
 
 ## Project layout
@@ -183,5 +194,5 @@ DeepHedging_Project/
 ├── paper/              main.tex + main.pdf (draft), generated tables, references.bib, outline
 ├── notebooks/          quickstart.ipynb — headline results in ~10 s (Colab)
 ├── docs/               PROJECT_SUMMARY.md, INTERVIEW.md, design specs and plans
-└── tests/              83 tests
+└── tests/              87 tests
 ```

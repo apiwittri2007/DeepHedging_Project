@@ -74,6 +74,17 @@ def main() -> None:
     lines += ["\\bottomrule", "\\end{tabular}"]
     (OUT / "table_economic.tex").write_text("\n".join(lines).replace(",", "{,}") + "\n")
 
+    # Table 4: robustness of the corrected p-values to the bootstrap cluster
+    rob = res.get("multiple_testing_by_cluster", [])
+    lines = ["\\begin{tabular}{lrrrrr}", "\\toprule",
+             "Arm & Cost & $\\Delta$CVaR & $p_{\\text{RW}}$ 1-month & 2-month & 3-month \\\\", "\\midrule"]
+    for g in rob:
+        if min(g["p_rw_1m"], g["p_rw_2m"], g["p_rw_3m"]) < 0.10:
+            lines.append(f"{NAMES.get(g['arm'], g['arm'])} & {g['cost']*1e4:.0f} & {g['diff']:+.3f} & "
+                         f"{g['p_rw_1m']:.3f} & {g['p_rw_2m']:.3f} & {g['p_rw_3m']:.3f} \\\\")
+    lines += ["\\bottomrule", "\\end{tabular}"]
+    (OUT / "table_clusters.tex").write_text("\n".join(lines) + "\n")
+
     # Number macros used in the text
     def sig(arm, cost, vs="delta"):
         return next((g for g in mt if g["arm"] == arm and g["cost"] == cost and g["vs"] == vs), None)
@@ -97,8 +108,11 @@ def main() -> None:
                 m.append(macro(f"Diff{base}", f"{g['diff']:+.2f}".replace("-", "$-$")))
                 m.append(macro(f"CI{base}", f"[{g['ci_low']:+.2f}, {g['ci_high']:+.2f}]".replace("-", "$-$")))
                 m.append(macro(f"PRW{base}", f"{g['p_romano_wolf']:.3f}"))
+    for g in rob:
+        if g["arm"] == "L_linear" and g["cost"] == fc:
+            m += [macro("PRWLFocusTwoM", f"{g['p_rw_2m']:.3f}"), macro("PRWLFocusQ", f"{g['p_rw_3m']:.3f}")]
     (OUT / "numbers.tex").write_text("".join(m))
-    for f in ("table_tests.tex", "table_economic.tex"):          # typographic minus signs in numbers
+    for f in ("table_tests.tex", "table_economic.tex", "table_clusters.tex"):          # typographic minus signs in numbers
         t = (OUT / f).read_text()
         (OUT / f).write_text(re.sub(r"(?<=[\s\[])-(?=[\d{])", "$-$", t))
     print(f"wrote {len(list(OUT.iterdir()))} files to {OUT}")

@@ -71,6 +71,8 @@ def write_tables(res, out: Path) -> str:
             lines.append(f"| {NAMES[arm]} | " + " | ".join(cells) + " |")
     for vs in ("delta", "A1_gbm"):
         lines += ["", f"## CVaR difference vs {NAMES[vs]} (negative = less tail risk), month-clustered 95% CI", "",
+                  "Single-test percentile bootstrap (not corrected for multiple testing; the corrected, primary",
+                  "inference is the multiple-testing table below, which uses a slightly different bootstrap convention).", "",
                   "| Arm | Cost (bps) | Diff | 95% CI | p(not better) |", "|---|---:|---:|---|---:|"]
         for g in res["significance"]:
             if g["vs"] == vs:
@@ -94,9 +96,19 @@ def write_tables(res, out: Path) -> str:
         family = [k.split("|")[0] for k in res["raw"]]
         family = sorted({a for a in family if a not in ("delta", "no_hedge")})   # no-hedge is not a contender
         mt = res["multiple_testing"] = multiple_testing(res, vs="delta", arms=family)
+        by_span = {1: mt, **{k: multiple_testing(res, vs="delta", arms=family, span=k) for k in (2, 3)}}
+        res["multiple_testing_by_cluster"] = [
+            {"arm": g["arm"], "cost": g["cost"], "diff": g["diff"],
+             **{f"p_rw_{k}m": next(x["p_romano_wolf"] for x in by_span[k]
+                                   if x["arm"] == g["arm"] and x["cost"] == g["cost"]) for k in (1, 2, 3)},
+             **{f"p_holm_{k}m": next(x["p_holm"] for x in by_span[k]
+                                     if x["arm"] == g["arm"] and x["cost"] == g["cost"]) for k in (1, 2, 3)}}
+            for g in mt]
         eco = res["economic"] = economic_size(res, vs="delta")
         _csv(mt, out / "multiple_testing.csv")
         _csv(eco, out / "economic_size.csv")
+        rob = res["multiple_testing_by_cluster"]
+        _csv(rob, out / "multiple_testing_by_cluster.csv")
         lines += ["", f"## Multiple testing: every arm × cost vs BS delta as one family (m = {len(mt)})", "",
                   "Month-clustered bootstrap shared by all tests; one-sided (arm has lower CVaR).", "",
                   "| Arm | Cost (bps) | Diff | 95% CI | p raw | p Holm | p Romano–Wolf |",
@@ -106,6 +118,16 @@ def write_tables(res, out: Path) -> str:
             lines.append(f"| {NAMES.get(g['arm'], g['arm'])} | {g['cost']*1e4:.0f} | {g['diff']:+.3f} | "
                          f"[{g['ci_low']:+.3f}, {g['ci_high']:+.3f}] | {g['p_raw']:.3f} | {g['p_holm']:.3f} | "
                          f"{g['p_romano_wolf']:.3f}{star} |")
+        lines += ["", "## Robustness of the corrected p-values to the bootstrap cluster", "",
+                  "Pre-registered: 1-month clusters. A 21-day window can span two months, so 2- and 3-month",
+                  "clusters are shown too. Rows with any Romano–Wolf p < 0.10.", "",
+                  "| Arm | Cost (bps) | Diff | p RW 1m | p RW 2m | p RW 3m | p Holm 1m | p Holm 3m |",
+                  "|---|---:|---:|---:|---:|---:|---:|---:|"]
+        for g in rob:
+            if min(g["p_rw_1m"], g["p_rw_2m"], g["p_rw_3m"]) < 0.10:
+                lines.append(f"| {NAMES.get(g['arm'], g['arm'])} | {g['cost']*1e4:.0f} | {g['diff']:+.3f} | "
+                             f"{g['p_rw_1m']:.3f} | {g['p_rw_2m']:.3f} | {g['p_rw_3m']:.3f} | "
+                             f"{g['p_holm_1m']:.3f} | {g['p_holm_3m']:.3f} |")
         prem = eco[0]["avg_premium_per_100"] if eco else float("nan")
         lines += ["", f"## Economic size at {fc*1e4:.0f} and 50 bps (vs BS delta; average premium HK${prem:.2f} per HK$100)", "",
                   "| Arm | Cost (bps) | CVaR change, HK$ per HK$1m notional | % of premium | Mean P&L change, HK$ per HK$1m |",
@@ -130,6 +152,8 @@ def merge_results(base: dict, new: dict) -> dict:
     for key, field in (("summary", "arm"), ("significance", "arm"), ("by_year", "arm"), ("realism", "source")):
         have = {r[field] for r in base[key]}
         out[key] = base[key] + [r for r in new[key] if r[field] not in have]
+    if "raw" in new:                                   # per-window P&L of the new arms too
+        out["raw"] = {**new["raw"], **base.get("raw", {})}
     return out
 
 

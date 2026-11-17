@@ -17,6 +17,9 @@
 
 ## CVaR difference vs BS delta (negative = less tail risk), month-clustered 95% CI
 
+Single-test percentile bootstrap (not corrected for multiple testing; the corrected, primary
+inference is the multiple-testing table below, which uses a slightly different bootstrap convention).
+
 | Arm | Cost (bps) | Diff | 95% CI | p(not better) |
 |---|---:|---:|---|---:|
 | A0 GBM, known vol | 0 | -0.061 | [-0.162, +0.030] | 0.103 |
@@ -75,6 +78,9 @@
 | L Linear correction | 50 | -0.179 | [-0.284, -0.094] | 0.000 |
 
 ## CVaR difference vs A1 GBM, estimated vol (negative = less tail risk), month-clustered 95% CI
+
+Single-test percentile bootstrap (not corrected for multiple testing; the corrected, primary
+inference is the multiple-testing table below, which uses a slightly different bootstrap convention).
 
 | Arm | Cost (bps) | Diff | 95% CI | p(not better) |
 |---|---:|---:|---|---:|
@@ -159,27 +165,27 @@ Month-clustered bootstrap shared by all tests; one-sided (arm has lower CVaR).
 
 | Arm | Cost (bps) | Diff | 95% CI | p raw | p Holm | p Romano–Wolf |
 |---|---:|---:|---|---:|---:|---:|
-| A0 GBM, known vol | 0 | -0.061 | [-0.153, +0.040] | 0.105 | 1.000 | 0.584 |
-| A1 GBM, estimated vol | 0 | -0.030 | [-0.146, +0.093] | 0.325 | 1.000 | 0.886 |
+| A0 GBM, known vol | 0 | -0.061 | [-0.153, +0.040] | 0.106 | 1.000 | 0.584 |
+| A1 GBM, estimated vol | 0 | -0.030 | [-0.146, +0.093] | 0.325 | 1.000 | 0.887 |
 | A2 GARCH-t | 0 | +0.646 | [+0.194, +1.061] | 0.997 | 1.000 | 1.000 |
 | A2b GARCH-t, ν ≥ 4 (sensitivity) | 0 | +0.111 | [-0.123, +0.314] | 0.840 | 1.000 | 0.998 |
-| A3 Block bootstrap | 0 | -0.049 | [-0.304, +0.182] | 0.349 | 1.000 | 0.912 |
+| A3 Block bootstrap | 0 | -0.049 | [-0.304, +0.182] | 0.350 | 1.000 | 0.912 |
 | A4 Real windows | 0 | +0.011 | [-0.169, +0.166] | 0.556 | 1.000 | 0.977 |
-| A5 GBM → real fine-tune | 0 | -0.071 | [-0.211, +0.053] | 0.139 | 1.000 | 0.681 |
+| A5 GBM → real fine-tune | 0 | -0.071 | [-0.211, +0.053] | 0.139 | 1.000 | 0.682 |
 | HW Min-variance delta (Hull–White form) | 0 | +0.143 | [+0.046, +0.250] | 0.996 | 1.000 | 1.000 |
-| L Linear correction | 0 | -0.118 | [-0.212, -0.019] | 0.013 | 0.702 | 0.093 |
+| L Linear correction | 0 | -0.118 | [-0.212, -0.019] | 0.014 | 0.728 | 0.094 |
 | Delta + band | 0 | +0.026 | [-0.061, +0.109] | 0.725 | 1.000 | 0.996 |
-| A0 GBM, known vol | 5 | -0.093 | [-0.215, +0.034] | 0.070 | 1.000 | 0.455 |
+| A0 GBM, known vol | 5 | -0.093 | [-0.215, +0.034] | 0.071 | 1.000 | 0.455 |
 | A1 GBM, estimated vol | 5 | -0.083 | [-0.215, +0.061] | 0.136 | 1.000 | 0.622 |
 | A2 GARCH-t | 5 | +4.221 | [+1.660, +7.128] | 1.000 | 1.000 | 1.000 |
 | A2b GARCH-t, ν ≥ 4 (sensitivity) | 5 | +0.119 | [-0.163, +0.358] | 0.822 | 1.000 | 0.997 |
-| A3 Block bootstrap | 5 | -0.067 | [-0.347, +0.188] | 0.318 | 1.000 | 0.886 |
-| A4 Real windows | 5 | -0.020 | [-0.213, +0.148] | 0.416 | 1.000 | 0.940 |
+| A3 Block bootstrap | 5 | -0.067 | [-0.347, +0.188] | 0.318 | 1.000 | 0.887 |
+| A4 Real windows | 5 | -0.020 | [-0.213, +0.148] | 0.417 | 1.000 | 0.940 |
 | A5 GBM → real fine-tune | 5 | -0.094 | [-0.249, +0.042] | 0.095 | 1.000 | 0.577 |
 | HW Min-variance delta (Hull–White form) | 5 | +0.146 | [+0.049, +0.252] | 0.997 | 1.000 | 1.000 |
-| L Linear correction | 5 | -0.126 | [-0.219, -0.026] | 0.009 | 0.486 | 0.068 |
+| L Linear correction | 5 | -0.126 | [-0.219, -0.026] | 0.009 | 0.513 | 0.068 |
 | Delta + band | 5 | +0.018 | [-0.070, +0.101] | 0.650 | 1.000 | 0.990 |
-| A0 GBM, known vol | 10 | -0.077 | [-0.196, +0.051] | 0.122 | 1.000 | 0.591 |
+| A0 GBM, known vol | 10 | -0.077 | [-0.196, +0.051] | 0.123 | 1.000 | 0.591 |
 | A1 GBM, estimated vol | 10 | -0.123 | [-0.241, +0.002] | 0.027 | 1.000 | 0.226 |
 | A2 GARCH-t | 10 | +1.636 | [+0.573, +2.767] | 1.000 | 1.000 | 1.000 |
 | A2b GARCH-t, ν ≥ 4 (sensitivity) | 10 | +0.030 | [-0.220, +0.260] | 0.611 | 1.000 | 0.979 |
@@ -187,38 +193,55 @@ Month-clustered bootstrap shared by all tests; one-sided (arm has lower CVaR).
 | A4 Real windows | 10 | -0.024 | [-0.234, +0.156] | 0.400 | 1.000 | 0.937 |
 | A5 GBM → real fine-tune | 10 | -0.127 | [-0.302, +0.032] | 0.067 | 1.000 | 0.454 |
 | HW Min-variance delta (Hull–White form) | 10 | +0.149 | [+0.053, +0.258] | 0.997 | 1.000 | 1.000 |
-| L Linear correction | 10 | -0.132 | [-0.225, -0.032] | 0.005 | 0.308 | 0.049 **✓** |
+| L Linear correction | 10 | -0.132 | [-0.225, -0.032] | 0.006 | 0.336 | 0.049 **✓** |
 | Delta + band | 10 | +0.012 | [-0.077, +0.094] | 0.603 | 1.000 | 0.982 |
-| A0 GBM, known vol | 15 | -0.143 | [-0.258, -0.009] | 0.018 | 0.918 | 0.141 |
-| A1 GBM, estimated vol | 15 | -0.112 | [-0.242, +0.025] | 0.060 | 1.000 | 0.370 |
+| A0 GBM, known vol | 15 | -0.143 | [-0.258, -0.009] | 0.018 | 0.943 | 0.142 |
+| A1 GBM, estimated vol | 15 | -0.112 | [-0.242, +0.025] | 0.061 | 1.000 | 0.370 |
 | A2 GARCH-t | 15 | +1.158 | [+0.514, +1.756] | 1.000 | 1.000 | 1.000 |
 | A2b GARCH-t, ν ≥ 4 (sensitivity) | 15 | +0.100 | [-0.137, +0.330] | 0.819 | 1.000 | 0.997 |
-| A3 Block bootstrap | 15 | -0.076 | [-0.407, +0.226] | 0.326 | 1.000 | 0.887 |
+| A3 Block bootstrap | 15 | -0.076 | [-0.407, +0.226] | 0.326 | 1.000 | 0.888 |
 | A4 Real windows | 15 | -0.067 | [-0.281, +0.123] | 0.251 | 1.000 | 0.837 |
 | A5 GBM → real fine-tune | 15 | -0.139 | [-0.318, +0.026] | 0.057 | 1.000 | 0.408 |
 | HW Min-variance delta (Hull–White form) | 15 | +0.152 | [+0.056, +0.261] | 0.998 | 1.000 | 1.000 |
-| L Linear correction | 15 | -0.139 | [-0.229, -0.039] | 0.004 | 0.200 | 0.033 **✓** |
+| L Linear correction | 15 | -0.139 | [-0.229, -0.039] | 0.004 | 0.228 | 0.033 **✓** |
 | Delta + band | 15 | +0.005 | [-0.082, +0.088] | 0.541 | 1.000 | 0.977 |
-| A0 GBM, known vol | 25 | -0.161 | [-0.302, -0.010] | 0.019 | 0.975 | 0.158 |
-| A1 GBM, estimated vol | 25 | -0.153 | [-0.312, +0.015] | 0.037 | 1.000 | 0.284 |
+| A0 GBM, known vol | 25 | -0.161 | [-0.302, -0.010] | 0.020 | 1.000 | 0.158 |
+| A1 GBM, estimated vol | 25 | -0.153 | [-0.312, +0.015] | 0.037 | 1.000 | 0.285 |
 | A2 GARCH-t | 25 | +0.318 | [+0.136, +0.528] | 1.000 | 1.000 | 1.000 |
 | A2b GARCH-t, ν ≥ 4 (sensitivity) | 25 | +0.107 | [-0.181, +0.395] | 0.797 | 1.000 | 0.996 |
 | A3 Block bootstrap | 25 | -0.147 | [-0.527, +0.213] | 0.218 | 1.000 | 0.786 |
 | A4 Real windows | 25 | -0.087 | [-0.354, +0.166] | 0.253 | 1.000 | 0.835 |
 | A5 GBM → real fine-tune | 25 | -0.200 | [-0.404, -0.001] | 0.025 | 1.000 | 0.236 |
 | HW Min-variance delta (Hull–White form) | 25 | +0.158 | [+0.064, +0.269] | 0.999 | 1.000 | 1.000 |
-| L Linear correction | 25 | -0.150 | [-0.236, -0.048] | 0.002 | 0.088 | 0.018 **✓** |
-| Delta + band | 25 | -0.006 | [-0.092, +0.082] | 0.470 | 1.000 | 0.947 |
-| A0 GBM, known vol | 50 | -0.306 | [-0.508, -0.092] | 0.003 | 0.145 | 0.034 **✓** |
-| A1 GBM, estimated vol | 50 | -0.304 | [-0.518, -0.072] | 0.005 | 0.308 | 0.062 |
+| L Linear correction | 25 | -0.150 | [-0.236, -0.048] | 0.002 | 0.118 | 0.018 **✓** |
+| Delta + band | 25 | -0.006 | [-0.092, +0.082] | 0.471 | 1.000 | 0.947 |
+| A0 GBM, known vol | 50 | -0.306 | [-0.508, -0.092] | 0.003 | 0.174 | 0.034 **✓** |
+| A1 GBM, estimated vol | 50 | -0.304 | [-0.518, -0.072] | 0.006 | 0.336 | 0.063 |
 | A2 GARCH-t | 50 | +3.115 | [+2.414, +4.234] | 1.000 | 1.000 | 1.000 |
 | A2b GARCH-t, ν ≥ 4 (sensitivity) | 50 | -0.060 | [-0.471, +0.337] | 0.402 | 1.000 | 0.931 |
-| A3 Block bootstrap | 50 | -0.240 | [-0.739, +0.238] | 0.180 | 1.000 | 0.730 |
+| A3 Block bootstrap | 50 | -0.240 | [-0.739, +0.238] | 0.181 | 1.000 | 0.730 |
 | A4 Real windows | 50 | -0.246 | [-0.642, +0.137] | 0.106 | 1.000 | 0.584 |
-| A5 GBM → real fine-tune | 50 | -0.367 | [-0.667, -0.066] | 0.011 | 0.556 | 0.093 |
+| A5 GBM → real fine-tune | 50 | -0.367 | [-0.667, -0.066] | 0.011 | 0.583 | 0.094 |
 | HW Min-variance delta (Hull–White form) | 50 | +0.167 | [+0.069, +0.278] | 1.000 | 1.000 | 1.000 |
-| L Linear correction | 50 | -0.179 | [-0.264, -0.075] | 0.001 | 0.030 | 0.004 **✓** |
+| L Linear correction | 50 | -0.179 | [-0.264, -0.075] | 0.001 | 0.060 | 0.004 **✓** |
 | Delta + band | 50 | -0.040 | [-0.117, +0.051] | 0.226 | 1.000 | 0.746 |
+
+## Robustness of the corrected p-values to the bootstrap cluster
+
+Pre-registered: 1-month clusters. A 21-day window can span two months, so 2- and 3-month
+clusters are shown too. Rows with any Romano–Wolf p < 0.10.
+
+| Arm | Cost (bps) | Diff | p RW 1m | p RW 2m | p RW 3m | p Holm 1m | p Holm 3m |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| L Linear correction | 0 | -0.118 | 0.094 | 0.048 | 0.170 | 0.728 | 1.000 |
+| L Linear correction | 5 | -0.126 | 0.068 | 0.034 | 0.125 | 0.513 | 1.000 |
+| L Linear correction | 10 | -0.132 | 0.049 | 0.024 | 0.091 | 0.336 | 0.837 |
+| L Linear correction | 15 | -0.139 | 0.033 | 0.017 | 0.064 | 0.228 | 0.632 |
+| L Linear correction | 25 | -0.150 | 0.018 | 0.010 | 0.042 | 0.118 | 0.541 |
+| A0 GBM, known vol | 50 | -0.306 | 0.034 | 0.053 | 0.042 | 0.174 | 0.174 |
+| A1 GBM, estimated vol | 50 | -0.304 | 0.063 | 0.061 | 0.049 | 0.336 | 0.118 |
+| A5 GBM → real fine-tune | 50 | -0.367 | 0.094 | 0.076 | 0.109 | 0.583 | 0.541 |
+| L Linear correction | 50 | -0.179 | 0.004 | 0.004 | 0.017 | 0.060 | 0.060 |
 
 ## Economic size at 15 and 50 bps (vs BS delta; average premium HK$6.05 per HK$100)
 

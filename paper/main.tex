@@ -21,14 +21,16 @@ on a single test split. We ask two questions on 29 Hang Seng Tech stocks (2000--
 which training data makes a better deep hedger, and does the answer survive an honest evaluation?
 We compare six training-data sources (GBM with known or estimated volatility, GARCH-$t$, a
 stationary block bootstrap, real windows, and GBM pre-training fine-tuned on real windows) with
-Black--Scholes delta and two three-parameter linear corrections to delta (a Ruf--Wang-type
-regression and the Hull--White minimum-variance form). Every model is retrained each year using
+Black--Scholes delta and two three-parameter linear corrections to delta (a quadratic-in-delta
+regression in the spirit of Ruf and Wang, and the Hull--White minimum-variance form). Every model is retrained each year using
 only past data (walk-forward, 2016--2026, \NTest{} one-month option windows), with \NSeeds{} training
 seeds, month-clustered bootstrap inference and a Romano--Wolf correction over the
 \NFamily{} arm-by-cost comparisons.
 Three findings stand out. First, a gain over delta that is significant in a single train/test split with one
 seed is not robust under walk-forward retraining with several seeds. Second, at realistic Hong Kong
-costs (\FocusBps{} bps per side) the simple linear corrections are as good as or better than every deep hedger.
+costs (\FocusBps{} bps per side) the quadratic-in-delta correction is as good as the best deep hedger and
+the only method significant after correction, although only borderline when the bootstrap clusters
+quarters instead of months.
 Third, deep hedgers only pull ahead when costs are high (50 bps). More realistic training data does not
 help beyond noise. The evaluation protocol matters more than the training data.
 \end{abstract}
@@ -43,11 +45,21 @@ data should be used instead, is an open question
 \citep{mikkila2023empirical,buehler2022drift,hashimoto2026realism}.
 
 Two strands of evidence motivate this paper. \citet{ruf2022hedging} show that once the evaluation
-is done carefully, a linear regression on delta matches neural hedgers on index options, and
+is done carefully, a linear regression on Black--Scholes sensitivities (delta, vega, vanna, gamma)
+hedges as well as neural networks, and
 \citet{ruf2020review} warn that conclusions often depend on the data split and on the volatility estimate.
-Recent preprints find that deep hedgers learn a delta correction resembling the minimum-variance
-delta of \citet{hull2017optimal} that is fragile across regimes \citep{zernikov2026learn}, and that
-their advantage grows with transaction costs \citep{francois2025ivs,bracha2025drl}.
+Recent work finds that deep hedgers learn a delta reduction whose direction is consistent with the
+minimum-variance delta of \citet{hull2017optimal} and that is fragile across regimes
+\citep{zernikov2026learn}, that their advantage over simpler hedges grows with transaction costs
+\citep{francois2025ivs,bracha2025drl}, and that the difference between deep and delta hedging can be
+read as a statistical arbitrage \citep{francois2024statarb}. Architectures and features have been
+extended in many directions, from recurrent networks on real index and Hong Kong options
+\citep{zhang2021option} to no-transaction-band networks \citep{imaki2021ntb}, reinforcement learning
+\citep{cao2021deep} and residual corrections to delta \citep{qiao2024residual}; generative models such
+as \citet{wiese2020quant} supply realistic training paths. Closest to our training-data question,
+\citet{mikkila2023empirical} find that training on real S\&P 500 option prices beats training on
+calibrated simulations, whereas our real-window arm does not beat GBM training; with synthetic option
+prices (Section~\ref{sec:limits}) the two results are not directly comparable.
 
 We contribute in three ways.
 (i) \emph{Protocol fragility.} The same deep hedger that beats delta significantly on one split with
@@ -94,8 +106,11 @@ fitted by least squares to the variance of zero-cost hedging P\&L on the same pr
 \paragraph{Inference.} CVaR is averaged over \NSeeds{} seeds. Differences with delta are tested with a
 paired bootstrap that resamples whole calendar months (2{,}000 draws), so stocks hit by the same
 shock are not counted as independent. All \NFamily{} arm-by-cost comparisons form one family:
-we report Holm \citep{holm1979simple} and studentised Romano--Wolf step-down \citep{romano2005stepwise}
-adjusted $p$-values from a single shared bootstrap \citep[see also][]{harvey2016and}.
+we report Holm \citep{holm1979simple} and Romano--Wolf step-down \citep{romano2005stepwise}
+adjusted $p$-values (statistics standardised by each test's bootstrap standard error) from a single
+shared bootstrap \citep[see also][]{harvey2016and}; $p$-values use $(1+\#)/(B+1)$. Because a 21-day window
+can span two calendar months, we repeat the inference with 2- and 3-month clusters (Table~4).
+Inference treats the \NSeeds{} trained networks as given: it is conditional on the seeds.
 
 \section{Results}
 \begin{table}[h]\centering\small
@@ -110,6 +125,12 @@ raw and adjusted over all \NFamily{} comparisons. $^\dagger$post hoc.}
 \end{table}
 
 \begin{table}[h]\centering\small
+\caption{Romano--Wolf adjusted $p$-values under 1-, 2- and 3-month bootstrap clusters
+(rows with any $p<0.10$). The pre-registered choice is 1 month.}
+\input{generated/table_clusters.tex}
+\end{table}
+
+\begin{table}[h]\centering\small
 \caption{Economic size vs BS delta (average premium HK\$\AvgPremium{} per HK\$100).}
 \resizebox{\textwidth}{!}{\input{generated/table_economic.tex}}
 \end{table}
@@ -121,7 +142,9 @@ raw and adjusted over all \NFamily{} comparisons. $^\dagger$post hoc.}
 Option prices are synthetic, so the spot--implied-volatility co-movement that drives the empirical
 minimum-variance correction \citep{hull2017optimal,zernikov2026learn} is absent; a replication on
 traded options (Deribit BTC options, and HKEX stock options if access is obtained) is in progress.
-Constituents are today's index members (survivorship bias). We hedge single stocks with the stock
+Constituents are today's index members (survivorship bias), and prices are dividend-adjusted, so the
+option is effectively written on a total-return series. Test windows with a missing price or a daily
+move above 50\% are dropped, which uses information from inside the window (one test window). We hedge single stocks with the stock
 itself; index futures would be cheaper. Hyper-parameters were fixed before the walk-forward results
 were seen and not tuned.
 

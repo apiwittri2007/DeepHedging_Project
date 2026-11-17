@@ -5,8 +5,8 @@
 > tech stocks once trading costs are real, and which training data makes it best. The key was the
 > protocol: I retrained every model each year using only past data, ran ten seeds, and corrected for
 > the sixty comparisons I made. The honest answer: at realistic HK costs, a simple three-parameter
-> correction to delta is the only thing that reliably beats delta, about HK$1,400 less tail loss per
-> million of notional. The neural network only pays off when trading is expensive. A result that
+> correction to delta is the only thing that beats delta after correction, about HK$1,400 less tail
+> loss per million of notional, though at 15 bps that is borderline. The neural network only pays off when trading is expensive. A result that
 > looked significant in my first, single-split version did not survive that protocol."
 
 ## Why this isn't a toy "neural net beats the market" project
@@ -43,7 +43,8 @@
   co-movement that the Hull–White correction exploits. Replicating on traded options is the next step.
 - **"How do you know it's not noise?"** Ten seeds; resampling whole months, because stocks in the same
   month share shocks; and a Romano–Wolf correction over 60 tests. Only the linear correction, and the
-  deep hedger at 50 bps, survive.
+  deep hedger at 50 bps, survive. I'm upfront that the 15 bps result is borderline: with quarterly
+  clusters its adjusted p is 0.06, while at 25–50 bps it holds under every cluster choice.
 
 ## Data story
 Yahoo and HKEX weren't reachable from my build machine. I found a free, daily-refreshed GitHub mirror
